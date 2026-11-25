@@ -1,17 +1,26 @@
-# news-image-20261125 — main.py
+# news-image-20261125 — main.py (V2)
 #
 # A one-page broadsheet that sums up the world's news of Wednesday
 # 25 November 2026 in a single image. Python 3.13, standard library only,
 # no network. The program draws the page itself (its own tiny rasteriser,
-# its own 5x7 type, its own PNG writer) and writes /output/entry.png.
+# its own 7x9 type, its own PNG writer) and writes /output/entry.png.
 # It runs twice and writes identical bytes: every drawing decision is
 # integer or fixed-seed arithmetic, nothing reads a clock or a RNG.
 #
 # Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 #   mkdir -p out && MAKEFUN_OUTPUT_DIR=out python3 main.py
 #
+# V2 changes over V1: a new 7x9 bitmap typeface drawn for legibility
+# (V1's 5x7 confused OCR and the eye: M as SH, C as L, 0/9/3 swaps);
+# wire rows given real air; the lead scene given depth (glow, smoke,
+# pad, clouds); #62 core PCE promoted to a feature, #38 demoted to the
+# wire, #45 dropped; #37 updated to the verified detonation outcome;
+# #8's body carries its Meduza/Mediazona attribution; feature bodies
+# rewritten with a second concrete clause; the wire reordered
+# round-robin by beat; chart footnote and footer sources fixed.
+#
 # The page carries exactly 37 stories from that day's reporting
-# (Reuters, AP, AFP, Xinhua, WHO, UEFA and official releases):
+# (Reuters, AP, AFP, Xinhua, WHO, UEFA, BEA, EPA and official releases):
 #   1 lead, 1 markets chart panel, 1 feature in the rail,
 #   4 features in a row, and 30 one-line wire briefs.
 
@@ -21,65 +30,69 @@ import struct
 import zlib
 
 # ---------------------------------------------------------------- type ----
-# A 5x7 pixel typeface, drawn as data: seven rows of five bits per glyph.
+# A 7x9 pixel typeface, drawn as data: nine rows of seven bits per glyph.
 # Only the characters the page prints are defined; text is upper-case.
+# Glyphs were drawn for distinctness: M has a full centre valley, C is
+# open, 0 carries a slash, 1 has a foot, 5 and S differ in the top bar.
 
 FONT = {
-    "A": ("01110", "10001", "10001", "11111", "10001", "10001", "10001"),
-    "B": ("11110", "10001", "10001", "11110", "10001", "10001", "11110"),
-    "C": ("01110", "10001", "10000", "10000", "10000", "10001", "01110"),
-    "D": ("11100", "10010", "10001", "10001", "10001", "10010", "11100"),
-    "E": ("11111", "10000", "10000", "11110", "10000", "10000", "11111"),
-    "F": ("11111", "10000", "10000", "11110", "10000", "10000", "10000"),
-    "G": ("01110", "10001", "10000", "10111", "10001", "10001", "01111"),
-    "H": ("10001", "10001", "10001", "11111", "10001", "10001", "10001"),
-    "I": ("01110", "00100", "00100", "00100", "00100", "00100", "01110"),
-    "J": ("00111", "00010", "00010", "00010", "00010", "10010", "01100"),
-    "K": ("10001", "10010", "10100", "11000", "10100", "10010", "10001"),
-    "L": ("10000", "10000", "10000", "10000", "10000", "10000", "11111"),
-    "M": ("10001", "11011", "10101", "10101", "10001", "10001", "10001"),
-    "N": ("10001", "10001", "11001", "10101", "10011", "10001", "10001"),
-    "O": ("01110", "10001", "10001", "10001", "10001", "10001", "01110"),
-    "P": ("11110", "10001", "10001", "11110", "10000", "10000", "10000"),
-    "Q": ("01110", "10001", "10001", "10001", "10101", "10010", "01101"),
-    "R": ("11110", "10001", "10001", "11110", "10100", "10010", "10001"),
-    "S": ("01111", "10000", "10000", "01110", "00001", "00001", "11110"),
-    "T": ("11111", "00100", "00100", "00100", "00100", "00100", "00100"),
-    "U": ("10001", "10001", "10001", "10001", "10001", "10001", "01110"),
-    "V": ("10001", "10001", "10001", "10001", "10001", "01010", "00100"),
-    "W": ("10001", "10001", "10001", "10101", "10101", "10101", "01010"),
-    "X": ("10001", "10001", "01010", "00100", "01010", "10001", "10001"),
-    "Y": ("10001", "10001", "01010", "00100", "00100", "00100", "00100"),
-    "Z": ("11111", "00001", "00010", "00100", "01000", "10000", "11111"),
-    "0": ("01110", "10001", "10011", "10101", "11001", "10001", "01110"),
-    "1": ("00100", "01100", "00100", "00100", "00100", "00100", "01110"),
-    "2": ("01110", "10001", "00001", "00010", "00100", "01000", "11111"),
-    "3": ("11111", "00010", "00100", "00010", "00001", "10001", "01110"),
-    "4": ("00010", "00110", "01010", "10010", "11111", "00010", "00010"),
-    "5": ("11111", "10000", "11110", "00001", "00001", "10001", "01110"),
-    "6": ("00110", "01000", "10000", "11110", "10001", "10001", "01110"),
-    "7": ("11111", "00001", "00010", "00100", "01000", "01000", "01000"),
-    "8": ("01110", "10001", "10001", "01110", "10001", "10001", "01110"),
-    "9": ("01110", "10001", "10001", "01111", "00001", "00010", "01100"),
-    " ": ("00000", "00000", "00000", "00000", "00000", "00000", "00000"),
-    ".": ("00000", "00000", "00000", "00000", "00000", "01100", "01100"),
-    ",": ("00000", "00000", "00000", "00000", "01100", "00100", "01000"),
-    "'": ("00100", "00100", "01000", "00000", "00000", "00000", "00000"),
-    "-": ("00000", "00000", "00000", "01110", "00000", "00000", "00000"),
-    ":": ("00000", "01100", "01100", "00000", "01100", "01100", "00000"),
-    ";": ("00000", "01100", "01100", "00000", "01100", "00100", "01000"),
-    "!": ("00100", "00100", "00100", "00100", "00100", "00000", "00100"),
-    "?": ("01110", "10001", "00001", "00110", "00100", "00000", "00100"),
-    "%": ("11001", "11010", "00010", "00100", "01000", "01011", "10011"),
-    "$": ("00100", "01111", "10100", "01110", "00101", "11110", "00100"),
-    "+": ("00000", "00100", "00100", "01110", "00100", "00100", "00000"),
-    "/": ("00001", "00010", "00010", "00100", "01000", "01000", "10000"),
-    "(": ("00010", "00100", "01000", "01000", "01000", "00100", "00010"),
-    ")": ("01000", "00100", "00010", "00010", "00010", "00100", "01000"),
-    "&": ("01100", "10010", "10100", "01000", "10101", "10010", "01101"),
-    '"': ("01010", "01010", "00000", "00000", "00000", "00000", "00000"),
-    "*": ("00000", "10101", "01110", "10101", "00000", "00000", "00000"),
+    "A": ("0011100", "0100010", "0100010", "0100010", "0111110", "0100010", "0100010", "0100010", "0100010"),
+    "B": ("0111100", "0100010", "0100010", "0111100", "0100010", "0100010", "0100010", "0100010", "0111100"),
+    "C": ("0011110", "0100001", "0100000", "0100000", "0100000", "0100000", "0100000", "0100001", "0011110"),
+    "D": ("0111000", "0100100", "0100010", "0100010", "0100010", "0100010", "0100010", "0100100", "0111000"),
+    "E": ("0111110", "0100000", "0100000", "0111100", "0100000", "0100000", "0100000", "0100000", "0111110"),
+    "F": ("0111110", "0100000", "0100000", "0111100", "0100000", "0100000", "0100000", "0100000", "0100000"),
+    "G": ("0011110", "0100001", "0100000", "0100000", "0100111", "0100001", "0100001", "0100001", "0011111"),
+    "H": ("0100010", "0100010", "0100010", "0111110", "0100010", "0100010", "0100010", "0100010", "0100010"),
+    "I": ("0111100", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000", "0111100"),
+    "J": ("0000111", "0000010", "0000010", "0000010", "0000010", "0000010", "0100010", "0100010", "0011100"),
+    "K": ("0100010", "0100100", "0101000", "0110000", "0101000", "0100100", "0100010", "0100010", "0100010"),
+    "L": ("0100000", "0100000", "0100000", "0100000", "0100000", "0100000", "0100000", "0100000", "0111110"),
+    "M": ("0100010", "0110110", "0111110", "0101010", "0101010", "0100010", "0100010", "0100010", "0100010"),
+    "N": ("0100010", "0110010", "0111010", "0101110", "0100110", "0100010", "0100010", "0100010", "0100010"),
+    "O": ("0011100", "0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0011100"),
+    "P": ("0111100", "0100010", "0100010", "0111100", "0100000", "0100000", "0100000", "0100000", "0100000"),
+    "Q": ("0011100", "0100010", "0100010", "0100010", "0100010", "0101010", "0100110", "0001010", "0000110"),
+    "R": ("0111100", "0100010", "0100010", "0111100", "0101000", "0100100", "0100010", "0100010", "0100010"),
+    "S": ("0011110", "0100001", "0100000", "0011100", "0000010", "0000001", "0000001", "0100001", "0011110"),
+    "T": ("0111110", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000"),
+    "U": ("0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0011100"),
+    "V": ("0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0010100", "0010100", "0001000"),
+    "W": ("0100010", "0100010", "0100010", "0100010", "0101010", "0101010", "0101010", "0110110", "0100010"),
+    "X": ("0100010", "0100010", "0010100", "0001000", "0001000", "0001000", "0010100", "0100010", "0100010"),
+    "Y": ("0100010", "0100010", "0010100", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000"),
+    "Z": ("0111110", "0000010", "0000100", "0001000", "0010000", "0100000", "0100000", "0100000", "0111110"),
+    "0": ("0111100", "0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0111100"),
+    "1": ("0001000", "0011000", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000", "0011100"),
+    "2": ("0011100", "0100010", "0000010", "0000110", "0001000", "0010000", "0100000", "0100000", "0111110"),
+    "3": ("0111100", "0000010", "0000010", "0011100", "0000010", "0000010", "0000010", "0000010", "0111100"),
+    "4": ("0000100", "0001100", "0010100", "0100100", "0100010", "0111110", "0000010", "0000010", "0000010"),
+    "5": ("0111110", "0100000", "0111100", "0000010", "0000010", "0000010", "0000010", "0100010", "0011100"),
+    "6": ("0011100", "0100000", "0100000", "0111100", "0100010", "0100010", "0100010", "0100010", "0011100"),
+    "7": ("0111110", "0000010", "0000100", "0001000", "0001000", "0010000", "0010000", "0010000", "0010000"),
+    "8": ("0011100", "0100010", "0100010", "0011100", "0100010", "0100010", "0100010", "0100010", "0011100"),
+    "9": ("0011100", "0100010", "0100010", "0100010", "0100010", "0011110", "0000010", "0000010", "0011100"),
+    " ": ("0000000", "0000000", "0000000", "0000000", "0000000", "0000000", "0000000", "0000000", "0000000"),
+    ".": ("0000000", "0000000", "0000000", "0000000", "0000000", "0000000", "0000000", "0011000", "0011000"),
+    ",": ("0000000", "0000000", "0000000", "0000000", "0000000", "0000000", "0011000", "0010000", "0100000"),
+    "'": ("0001000", "0001000", "0010000", "0000000", "0000000", "0000000", "0000000", "0000000", "0000000"),
+    "-": ("0000000", "0000000", "0000000", "0000000", "0111100", "0000000", "0000000", "0000000", "0000000"),
+    ":": ("0000000", "0011000", "0011000", "0000000", "0011000", "0011000", "0000000", "0000000", "0000000"),
+    ";": ("0000000", "0011000", "0011000", "0000000", "0011000", "0011000", "0010000", "0100000", "0000000"),
+    "!": ("0001000", "0001000", "0001000", "0001000", "0001000", "0001000", "0000000", "0011000", "0011000"),
+    "?": ("0011100", "0100010", "0000010", "0001100", "0001000", "0000000", "0001000", "0001000", "0000000"),
+    "%": ("0110000", "0110000", "0000100", "0001000", "0010000", "0100000", "0000110", "0000110", "0000000"),
+    "$": ("0001000", "0011110", "0100100", "0100100", "0011100", "0001010", "0101010", "0111100", "0001000"),
+    "+": ("0000000", "0000000", "0001000", "0001000", "0011100", "0001000", "0001000", "0000000", "0000000"),
+    "/": ("0000010", "0000010", "0000100", "0000100", "0001000", "0010000", "0010000", "0100000", "0100000"),
+    "(": ("0000100", "0001000", "0010000", "0010000", "0010000", "0010000", "0010000", "0001000", "0000100"),
+    ")": ("0010000", "0001000", "0000100", "0000100", "0000100", "0000100", "0000100", "0001000", "0010000"),
+    "&": ("0011100", "0100010", "0100100", "0011000", "0101010", "0100100", "0100010", "0100010", "0011010"),
+    '"': ("0101010", "0101010", "0000000", "0000000", "0000000", "0000000", "0000000", "0000000", "0000000"),
+    "*": ("0000000", "0001000", "0101010", "0011100", "0101010", "0001000", "0000000", "0000000", "0000000"),
 }
+
+FONT_W, FONT_H, ADV = 7, 9, 8
 
 def clean(text):
     """Fold the few typographic characters the page uses into the type."""
@@ -165,7 +178,7 @@ class Page:
 
     # -- text -------------------------------------------------------------
     def text_w(self, text, s):
-        return len(clean(text)) * 6 * s - s
+        return len(clean(text)) * ADV * s - s
 
     def text(self, x, y, text, s, rgb, bold=False, align="left"):
         text = clean(text)
@@ -177,12 +190,12 @@ class Page:
         thick = 0.45 * s if bold else 0.0
         for ch in text:
             glyph = FONT.get(ch, FONT[" "])
-            for r in range(7):
+            for r in range(FONT_H):
                 rowbits = glyph[r]
-                for c in range(5):
+                for c in range(FONT_W):
                     if rowbits[c] == "1":
                         self.rect(x + c * s, y + r * s, s + thick, s, rgb)
-            x += 6 * s
+            x += ADV * s
         return w
 
     def wrap(self, text, s, width):
@@ -205,9 +218,9 @@ class Page:
             y += step
         return y
 
-    def fit_scale(self, text, s, width):
+    def fit_scale(self, text, s, width, floor=0.9):
         """Largest scale at or below s (step 0.05) that fits the width."""
-        while s > 0.9 and self.text_w(text, s) > width:
+        while s > floor and self.text_w(text, s) > width:
             s -= 0.05
         return s
 
@@ -239,6 +252,11 @@ STAR = bytes((240, 238, 220))
 FLAME = bytes((232, 119, 34))
 EARTH = bytes((38, 84, 124))
 RIM = bytes((110, 168, 214))
+GLOW1 = bytes((52, 66, 98))
+GLOW2 = bytes((30, 44, 72))
+SMOKE = bytes((150, 158, 175))
+PAD = bytes((8, 12, 22))
+CLOUD = bytes((96, 148, 196))
 
 BEAT = {
     "WAR": bytes((163, 30, 30)),
@@ -278,88 +296,89 @@ RAIL = (1, "WAR", "JEDDAH",
 FEATURES = [
     (8, "WAR", "MOSCOW",
      "RUSSIA'S WAR DEAD PASS 490,000 CONFIRMED",
-     "Breached-data count: 490,000 registered deaths confirmed; "
-     "estimates 700,000.",
+     "At least 490,000 registered deaths, breached-data count; "
+     "estimates 700,000 (Meduza/Mediazona).",
      "AT LEAST 490,000 DEAD"),
     (36, "BUSINESS", "DHAKA",
      "GARMENT WAGE UP 36% TO $139",
-     "Garment minimum wage up 36% to 17,000 taka ($139) after protests, "
-     "from December 1.",
+     "Wage board sets 17,000 taka ($139), up 36%, after protests; "
+     "workers sought double; ministry approval still pending.",
      "+36% TO $139"),
     (15, "POLITICS", "CANBERRA",
      "AUSTRALIA, SOLOMONS SIGN SECURITY TREATY",
-     "Australia becomes the Solomons' primary security partner; no "
-     "foreign base allowed.",
+     "Treaty signed in Canberra makes Australia the Solomons' primary "
+     "security partner; no foreign base allowed.",
      "PARTNER OF CHOICE"),
-    (38, "WORLD", "WASHINGTON",
-     "CIA, ODNI HIT BY CYBERATTACK",
-     "CNN reports intrusion at CIA/ODNI analysis system; ODNI says no "
-     "classified data hit.",
-     "CYBER INTRUSION"),
+    (62, "BUSINESS", "WASHINGTON",
+     "US CORE INFLATION RISES TO 3.3%",
+     "Core PCE rose 0.3% to 3.3% year on year, above the 3.2% forecast; "
+     "headline 3.8%; a December rate rise is expected.",
+     "CORE PCE 3.3%"),
 ]
 
-# Wire briefs: (pool, beat, headline, one terse line). 30 of them.
+# Wire briefs: (pool, beat, headline, one terse line). 30 of them,
+# reordered round-robin by beat so no beat is buried at the bottom.
 WIRE = [
     (2, "WAR", "DRONE HITS RIYADH'S TALLEST TOWER AGAIN",
-     "RIYADH - PIF TOWER STRUCK; AT LEAST 11 WOUNDED"),
+     "RIYADH - PIF TOWER HIT; AT LEAST 11 HURT"),
+    (12, "POLITICS", "TRUMP READIES NEW TARIFF WAVE",
+     "WASHINGTON - CAPACITY PROBE HITS 16 PARTNERS"),
+    (29, "BUSINESS", "NVIDIA SLIDES AS HYPE FADES",
+     "NEW YORK - NVIDIA -5.9%; DOW ROSE 0.9%"),
+    (37, "WORLD", "ARMY DETONATES 9,500 POUNDS OF LEAD AZIDE",
+     "IOWA - BLAST DONE; EPA: NO LEAD DETECTED"),
+    (48, "SCIENCE", "OLDEST QUASAR SEEN 13.1 BILLION YEARS BACK",
+     "SPACE - EUCLID FIND; BLACK HOLE 360M SUNS"),
+    (52, "SPORT", "MADRID ROUT PSV 5-1",
+     "MADRID - MBAPPE TWICE, FIVE FROM FIVE"),
     (3, "WAR", "HOUTHIS CLOSE TO 60 KM OF ADEN",
-     "ADEN - SOUTHERN PORT 'WILL NOT FALL', ARMY SAYS"),
+     "ADEN - PORT 'WILL NOT FALL', ARMY SAYS"),
+    (13, "POLITICS", "HUAWEI CONVICTED IN NEW YORK COURT",
+     "NEW YORK - GUILTY ON 10 OF 12; WILL APPEAL"),
+    (30, "BUSINESS", "CONSUMER CONFIDENCE JUMPS TO 103.3",
+     "NEW YORK - UP 11.4 POINTS, BEST SINCE JAN 2025"),
+    (39, "WORLD", "WHO EVACUATES HOSPITAL AMID FIGHTING",
+     "ITURI - EBOLA TOLL STANDS AT 5,775 DEATHS"),
+    (49, "SCIENCE", "TITANIUM OXIDE FOUND AROUND YOUNG STAR",
+     "SPACE - ALMA READS ORION SOURCE I'S AIR"),
+    (53, "SPORT", "ARSENAL HELD 1-1 AT DORTMUND",
+     "DORTMUND - CHAMPIONS LEAGUE POINT SHARED"),
     (4, "WAR", "RUSSIAN STRIKE ON ODESA KILLS TWO",
-     "ODESA - TWO DEAD, THREE HURT; KYIV DRONE ATTACK"),
+     "ODESA - TWO DEAD, THREE HURT; KYIV HIT TOO"),
+    (14, "POLITICS", "SHANGHAI CHIEF UNDER GRAFT PROBE",
+     "SHANGHAI - CHEN JINING, 4TH TOP PROBE SINCE 2025"),
+    (31, "BUSINESS", "BITCOIN SLIPS BELOW $60,000",
+     "NEW YORK - $59,257.71; $4.71BN ETF OUTFLOW"),
+    (41, "WORLD", "25 HELD HOSTAGE IN SUPERMARKET",
+     "CARTAGENA - HIJACK FAILS; FIVE FREED"),
+    (56, "SPORT", "ENGLAND LEVEL T20 SERIES IN AUSTRALIA",
+     "GOLD COAST - DONALD 85 OFF 32; SERIES 1-1"),
     (5, "WAR", "RUSSIA CALLS SHIP STRIKES 'TERRORISM'",
-     "MOSCOW - BALTIC, LIBYA VESSEL STRIKES DENOUNCED"),
+     "MOSCOW - BALTIC, LIBYA STRIKES DENOUNCED"),
+    (16, "POLITICS", "SARKOZY, BRUNI ORDERED TO TRIAL",
+     "PARIS - HEARING SET FOR APRIL 1, 2027"),
+    (32, "BUSINESS", "BRENT OPENS AT $90.97 IN ASIA",
+     "LONDON - DOWN 0.5%, 20% IN NOVEMBER"),
+    (42, "WORLD", "WFP: CHOKEPOINTS COULD ADD $727M COSTS",
+     "NEW YORK - 266M PEOPLE FACE ACUTE HUNGER"),
     (6, "WAR", "UKRAINE: CORVETTE SINKING WAS SELF-DEFENCE",
      "BENGHAZI - KYIV CITES UN CHARTER ARTICLE 51"),
+    (19, "POLITICS", "UKRAINE NEEDS 115BN EUROS FOR 2027",
+     "KYIV - 90BN COMMITTED; 25BN STILL TO FIND"),
+    (35, "BUSINESS", "MICROSOFT DECLARES 'CODE RED' OVERHAUL",
+     "REDMOND - AFTER WORST-EVER EXCHANGE OUTAGE"),
+    (44, "WORLD", "SANTAS WASH ASHORE IN BULGARIA",
+     "BURGAS - FIGURES SPILL FROM CONTAINER"),
     (7, "WAR", "PUTIN VOWS REVENGE FOR REFINERY STRIKES",
-     "MOSCOW - RETALIATION PLEDGED OVER OIL STRIKES"),
+     "MOSCOW - RETALIATION PLEDGED"),
+    (25, "POLITICS", "GERMANS TURN AGAINST UKRAINE AID",
+     "BERLIN - 53% OPPOSE AID, SURVEY FINDS"),
+    (38, "WORLD", "CNN: CIA, ODNI HIT BY CYBERATTACK",
+     "WASHINGTON - ODNI: NO CLASSIFIED DATA HIT"),
     (9, "WAR", "RSF COUNTERINTELLIGENCE CHIEF DEFECTS",
      "KHARTOUM - JABARA SWITCHES TO SUDAN'S ARMY"),
     (11, "WAR", "HORMUZ OIL FLOWS HALVED",
-     "HORMUZ - 8.5M BARRELS A DAY, TRACKER KPLER SAYS"),
-    (12, "POLITICS", "TRUMP READIES NEW TARIFF WAVE",
-     "WASHINGTON - 'EXCESS CAPACITY' PROBE, 16 PARTNERS"),
-    (13, "POLITICS", "HUAWEI CONVICTED IN NEW YORK COURT",
-     "NEW YORK - GUILTY ON 10 OF 12 COUNTS; WILL APPEAL"),
-    (14, "POLITICS", "SHANGHAI CHIEF UNDER GRAFT PROBE",
-     "SHANGHAI - CHEN JINING, FOURTH TOP PROBE SINCE 2025"),
-    (16, "POLITICS", "SARKOZY, BRUNI ORDERED TO TRIAL",
-     "PARIS - PRE-TRIAL HEARING SET FOR APRIL 1, 2027"),
-    (19, "POLITICS", "UKRAINE NEEDS 115BN EUROS FOR 2027",
-     "KYIV - 90BN EUROS COMMITTED; 25BN STILL TO FIND"),
-    (25, "POLITICS", "GERMANS TURN AGAINST UKRAINE AID",
-     "BERLIN - 53% NOW OPPOSE MILITARY AID, SURVEY FINDS"),
-    (29, "BUSINESS", "NVIDIA SLIDES AS HYPE FADES",
-     "NEW YORK - NVIDIA -5.9% TUESDAY; DOW ROSE 0.9%"),
-    (30, "BUSINESS", "CONSUMER CONFIDENCE JUMPS TO 103.3",
-     "NEW YORK - UP 11.4 POINTS, HIGHEST SINCE JAN 2025"),
-    (31, "BUSINESS", "BITCOIN SLIPS BELOW $60,000",
-     "NEW YORK - $59,257.71; RECORD $4.71BN ETF OUTFLOW"),
-    (32, "BUSINESS", "BRENT OPENS AT $90.97 IN ASIA",
-     "LONDON - DOWN 0.5% ON THE DAY, 20% IN NOVEMBER"),
-    (35, "BUSINESS", "MICROSOFT DECLARES 'CODE RED' OVERHAUL",
-     "REDMOND - AFTER WORST-EVER EXCHANGE OUTAGE"),
-    (37, "WORLD", "ARMY SET TO DETONATE 9,500 POUNDS",
-     "IOWA - LEAD AZIDE IN 68 BARRELS; STAY INDOORS"),
-    (39, "WORLD", "WHO EVACUATES HOSPITAL AMID FIGHTING",
-     "ITURI - EBOLA TOLL STANDS AT 5,775 DEATHS"),
-    (41, "WORLD", "25 HELD HOSTAGE IN SUPERMARKET",
-     "CARTAGENA - FAILED ARMOURED-CAR HIJACK; FIVE FREED"),
-    (42, "WORLD", "WFP: CHOKEPOINTS COULD ADD $727M COSTS",
-     "NEW YORK - 266M PEOPLE FACE ACUTE HUNGER"),
-    (44, "WORLD", "SANTAS WASH ASHORE IN BULGARIA",
-     "BURGAS - LIFE-SIZE FIGURES SPILL FROM CONTAINER"),
-    (45, "WORLD", "TRUMP PARDONS TURKEYS FREEDOM, FEATHERS",
-     "WASHINGTON - THANKSGIVING PARDON AT WHITE HOUSE"),
-    (48, "SCIENCE", "OLDEST QUASAR SEEN 13.1 BILLION YEARS BACK",
-     "SPACE - EUCLID FIND; BLACK HOLE 360M SUNS"),
-    (49, "SCIENCE", "TITANIUM OXIDE FOUND AROUND YOUNG STAR",
-     "SPACE - ALMA READS ORION SOURCE I'S AIR"),
-    (52, "SPORT", "MADRID ROUT PSV 5-1",
-     "MADRID - MBAPPE TWICE; FIVE WINS FROM FIVE IN UCL"),
-    (53, "SPORT", "ARSENAL HELD 1-1 AT DORTMUND",
-     "DORTMUND - CHAMPIONS LEAGUE POINT SHARED"),
-    (56, "SPORT", "ENGLAND LEVEL T20 SERIES IN AUSTRALIA",
-     "GOLD COAST - DONALD 85 OFF 32; SERIES 1-1"),
+     "HORMUZ - 8.5M BARRELS A DAY, KPLER SAYS"),
 ]
 
 STORY_COUNT = 1 + 1 + 1 + len(FEATURES) + len(WIRE)
@@ -367,37 +386,54 @@ assert STORY_COUNT == 37, STORY_COUNT
 
 # ------------------------------------------------------------ drawing -----
 
-def kicker(pg, x, y, story, s=2.0):
+def kicker(pg, x, y, story, s=1.7):
     beat, place = story[1], story[2]
     col = BEAT[beat]
     pg.rect(x, y + 1, 9, 9, col)
     pg.text(x + 15, y, beat + " - " + place, s, col, bold=True)
 
-def chip(pg, x, y, text, s=1.9):
+def chip(pg, x, y, text, s=1.6):
     w = pg.text_w(text, s) + 18
     pg.rect(x, y, w, 24, INK)
     pg.text(x + 9, y + 5, text, s, PAPER, bold=True)
     return w
 
 def scene_space(pg, x, y, w, h):
-    """The lead's night-launch scene: stars, Earth arc, rocket, station."""
+    """The lead's night-launch scene: stars, Earth arc, rocket, station.
+    V2 adds depth: horizon glow, smoke plume, launch pad, Earth clouds,
+    three star sizes with cross flares, a docked capsule on the station."""
     pg.rect(x, y, w, h, NIGHT)
     box = (x, y, w, h)
+    # horizon glow above the Earth arc
+    pg.rect(x, y + h - 48, w, 4, GLOW2)
+    pg.rect(x, y + h - 44, w, 3, GLOW1)
     # Earth: a great disc rising into the strip's foot, rim-lit
     pg.disc(x + w * 0.34, y + h + 150, 196, RIM, clip=box)
     pg.disc(x + w * 0.34, y + h + 150, 193, EARTH, clip=box)
+    # cloud swirls on the Earth arc (kept inside the disc by geometry)
+    ecx = x + w * 0.34
+    pg.disc(ecx - 42, y + h - 16, 15, CLOUD, clip=box)
+    pg.disc(ecx + 38, y + h - 24, 11, CLOUD, clip=box)
+    pg.disc(ecx + 8, y + h - 8, 9, CLOUD, clip=box)
     # deterministic star field (fixed-seed hash, no RNG state)
     for i in range(90):
         sx = x + (i * 137.5) % w
         sy = y + (i * 89.3) % (h - 30)
-        r = 1.1 if i % 3 else 1.9
+        r = 2.6 if i % 7 == 0 else (1.9 if i % 3 else 1.1)
         pg.rect(sx, sy, r, r, STAR)
-    # Tiangong station, top right: core + two panel wings
-    sx, sy = x + w - 150, y + 13
+        if i % 11 == 0:
+            pg.rect(sx - 3, sy + r / 2 - 0.5, 7, 1, STAR)
+            pg.rect(sx + r / 2 - 0.5, sy - 3, 1, 7, STAR)
+    # launch pad and tower at the rocket's base
+    pg.rect(x + 40, y + h - 10, 50, 10, PAD)
+    pg.rect(x + 44, y + h - 38, 3, 28, PAD)
+    # Tiangong station, top right: core + two panel wings + capsule
+    sx, sy = x + w - 150, y + 6
     pg.rect(sx, sy, 40, 14, STAR)
     pg.rect(sx - 36, sy + 3, 30, 9, RIM)
     pg.rect(sx + 46, sy + 3, 30, 9, RIM)
-    pg.text(sx - 36, sy + 20, "TIANGONG", 1.3, STAR)
+    pg.rect(sx + 15, sy + 15, 12, 5, bytes((200, 60, 44)))
+    pg.text(sx - 36, sy + 20, "TIANGONG", 1.1, STAR)
     # rocket climbing toward the station
     ang = math.radians(-52)
     bx, by = x + 56, y + h - 16
@@ -405,15 +441,18 @@ def scene_space(pg, x, y, w, h):
     vx, vy = -uy, ux
     def pt(along, side):
         return (bx + ux * along + vx * side, by + uy * along + vy * side)
+    # smoke plume trailing the nozzle, down and left
+    for d, r in ((12, 6), (22, 9), (34, 12)):
+        pg.disc(bx - ux * d, by - uy * d, r, SMOKE, clip=box)
     pg.poly([pt(8, -6), pt(-22, 0), pt(8, 6)], FLAME)
     pg.poly([pt(8, -9), pt(58, -9), pt(58, 9), pt(8, 9)], STAR)
     pg.poly([pt(58, -9), pt(80, 0), pt(58, 9)], bytes((200, 60, 44)))
     pg.poly([pt(8, -9), pt(-6, -20), pt(14, -9)], bytes((200, 60, 44)))
     pg.poly([pt(8, 9), pt(-6, 20), pt(14, 9)], bytes((200, 60, 44)))
-    pg.text(x + w - 12, y + h - 32, "08:18 CST - LONG MARCH-2F", 1.35,
+    pg.text(x + w - 12, y + h - 32, "08:18 CST - LONG MARCH-2F", 1.15,
             STAR, align="right")
     pg.text(x + w - 12, y + h - 17,
-            "ALI, 40, PAYLOAD SPECIALIST - STAYS 5-10 DAYS", 1.35, STAR,
+            "ALI, 40, PAYLOAD SPECIALIST - STAYS 5-10 DAYS", 1.15, STAR,
             align="right")
 
 def draw():
@@ -421,98 +460,98 @@ def draw():
     M = 26
     TOP = 184
     # -- masthead ---------------------------------------------------------
-    pg.text(W / 2, 26, "THE WORLD'S NEWS", 9.5, INK, bold=True,
+    pg.text(W / 2, 24, "THE WORLD'S NEWS", 7.2, INK, bold=True,
             align="center")
-    pg.text(M, 96, "ONE DAY - ONE PAGE - 37 STORIES", 1.9, MUTED, bold=True)
-    pg.text(W - M, 96, "ALL THE NEWS OF ONE WEDNESDAY", 1.9, MUTED,
+    pg.text(M, 96, "ONE DAY - ONE PAGE - 37 STORIES", 1.6, MUTED, bold=True)
+    pg.text(W - M, 96, "ALL THE NEWS OF ONE WEDNESDAY", 1.6, MUTED,
             bold=True, align="right")
     pg.rect(M, 122, W - 2 * M, 3, INK)
     # -- date band ----------------------------------------------------------
     pg.rect(M, 132, W - 2 * M, 44, INK)
-    pg.text(M + 14, 142, "WEDNESDAY 25 NOVEMBER 2026", 3.4, PAPER, bold=True)
-    pg.text(W - M - 14, 146, "37 STORIES - SIX BEATS", 2.2, PAPER,
+    pg.text(M + 14, 142, "WEDNESDAY 25 NOVEMBER 2026", 2.6, PAPER, bold=True)
+    pg.text(W - M - 14, 146, "37 STORIES - SIX BEATS", 1.8, PAPER,
             bold=True, align="right")
     # -- lead ---------------------------------------------------------------
-    lx, ly, lw, lh = M, TOP, 574, 348
+    lx, ly, lw, lh = M, TOP, 574, 344
     pg.rect(lx, ly, lw, lh, CARD)
     pg.frame(lx, ly, lw, lh, INK, 2)
     kicker(pg, lx + 16, ly + 14, LEAD)
-    hy = ly + 38
-    for ln in pg.wrap(LEAD[3], 4.3, lw - 32):
-        pg.text(lx + 16, hy, ln, 4.3, INK, bold=True)
-        hy += 37
+    hy = ly + 36
+    for ln in pg.wrap(LEAD[3], 3.2, lw - 32):
+        pg.text(lx + 16, hy, ln, 3.2, INK, bold=True)
+        hy += 30
     scene_space(pg, lx + 16, hy + 6, lw - 32, 78)
-    by = hy + 92
-    pg.para(lx + 16, by, LEAD[4], 1.95, INK, lw - 32, 18)
+    by = hy + 84
+    pg.para(lx + 16, by, LEAD[4], 1.65, INK, lw - 32, 16)
     chip(pg, lx + 16, ly + lh - 36, LEAD[5])
     # -- right rail: chart + rail feature ----------------------------------
     rx, rw = 616, W - M - 616
     ch_h = 184
     pg.rect(rx, ly, rw, ch_h, CARD)
     pg.frame(rx, ly, rw, ch_h, INK, 2)
-    kicker(pg, rx + 14, ly + 12, CHART, 1.9)
-    pg.text(rx + 14, ly + 38, "ASIA STOCKS TUMBLE", 2.9, INK, bold=True)
-    pg.text(rx + 14, ly + 63, "ON TARIFF THREATS", 2.9, INK, bold=True)
+    kicker(pg, rx + 14, ly + 12, CHART, 1.6)
+    pg.text(rx + 14, ly + 36, "ASIA STOCKS TUMBLE", 2.4, INK, bold=True)
+    pg.text(rx + 14, ly + 61, "ON TARIFF THREATS", 2.4, INK, bold=True)
     bx = rx + 112
     bw = rw - 112 - 58
     for i, (name, val) in enumerate(CHART_BARS):
         yy = ly + 94 + i * 20
-        pg.text(rx + 14, yy + 1, name, 1.5, MUTED, bold=True)
+        pg.text(rx + 14, yy + 1, name, 1.15, MUTED, bold=True)
         bl = bw * abs(val) / 5.3
         pg.rect(bx, yy, bl, 13, BEAT["BUSINESS"])
-        pg.text(bx + bl + 7, yy + 1, "-" + str(abs(val)) + "%", 1.5,
+        pg.text(bx + bl + 7, yy + 1, "-" + str(abs(val)) + "%", 1.3,
                 INK, bold=True)
-    pg.text(rx + 14, ly + ch_h - 15, "*NIKKEI INTRADAY - MSCI APAC "
-            "EX-JAPAN", 1.2, MUTED)
+    pg.text(rx + 14, ly + ch_h - 15, "*NIKKEI INTRADAY - ALL FIGURES "
+            "WEDNESDAY", 1.0, MUTED)
     ry = ly + ch_h + 12
     rh = ly + lh - ry
     pg.rect(rx, ry, rw, rh, CARD)
     pg.frame(rx, ry, rw, rh, INK, 2)
-    kicker(pg, rx + 14, ry + 11, RAIL, 1.9)
-    yy = ry + 35
-    for ln in pg.wrap(RAIL[3], 2.15, rw - 28):
-        pg.text(rx + 14, yy, ln, 2.15, INK, bold=True)
-        yy += 20
-    pg.para(rx + 14, yy + 3, RAIL[4], 1.55, INK, rw - 28, 15)
+    kicker(pg, rx + 14, ry + 11, RAIL, 1.6)
+    yy = ry + 33
+    for ln in pg.wrap(RAIL[3], 1.85, rw - 28):
+        pg.text(rx + 14, yy, ln, 1.85, INK, bold=True)
+        yy += 18
+    pg.para(rx + 14, yy + 3, RAIL[4], 1.35, INK, rw - 28, 13.5)
     # -- feature row ---------------------------------------------------------
-    fy, fh, gap = 546, 210, 12
+    fy, fh, gap = 540, 198, 12
     fw = (W - 2 * M - 3 * gap) / 4.0
     for i, st in enumerate(FEATURES):
         fx = M + i * (fw + gap)
         pg.rect(fx, fy, fw, fh, CARD)
         pg.frame(fx, fy, fw, fh, INK, 2)
-        kicker(pg, fx + 12, fy + 11, st, 1.45)
-        yy = fy + 36
-        for ln in pg.wrap(st[3], 2.1, fw - 24):
-            pg.text(fx + 12, yy, ln, 2.1, INK, bold=True)
-            yy += 19.5
-        pg.para(fx + 12, yy + 2, st[4], 1.5, INK, fw - 24, 14.5)
-        chip(pg, fx + 12, fy + fh - 33, st[5], 1.5)
+        kicker(pg, fx + 12, fy + 11, st, 1.25)
+        yy = fy + 34
+        for ln in pg.wrap(st[3], 1.6, fw - 24):
+            pg.text(fx + 12, yy, ln, 1.6, INK, bold=True)
+            yy += 16
+        pg.para(fx + 12, yy + 2, st[4], 1.25, INK, fw - 24, 12.5)
+        chip(pg, fx + 12, fy + fh - 33, st[5], 1.3)
     # -- the wire -------------------------------------------------------------
-    wy = 768
+    wy = 748
     pg.rect(M, wy - 6, W - 2 * M, 3, INK)
-    pg.text(M, wy + 4, "THE WIRE - 30 MORE STORIES FROM THE DAY", 2.1,
+    pg.text(M, wy + 4, "THE WIRE - 30 MORE STORIES FROM THE DAY", 1.9,
             INK, bold=True)
-    pg.text(W - M, wy + 6, "AS REPORTED ON THE DAY", 1.6, MUTED,
+    pg.text(W - M, wy + 6, "AS REPORTED ON THE DAY", 1.4, MUTED,
             bold=True, align="right")
     cols, rows = 3, 10
     gx, gy = M, wy + 34
     cw = (W - 2 * M - (cols - 1) * 18) / cols
-    chh = 18.4
+    chh = 21
     for idx, st in enumerate(WIRE):
         cx = gx + (idx % cols) * (cw + 18)
         cy = gy + (idx // cols) * chh
         col = BEAT[st[1]]
         pg.rect(cx, cy + 1.5, 6.5, 6.5, col)
-        hs = pg.fit_scale(st[2], 1.45, cw - 12)
+        hs = pg.fit_scale(st[2], 1.15, cw - 12, floor=0.85)
         pg.text(cx + 12, cy, st[2], hs, INK, bold=True)
-        bs = pg.fit_scale(st[3], 1.05, cw - 12)
-        pg.text(cx + 12, cy + 10.8, st[3], bs, MUTED)
+        bs = pg.fit_scale(st[3], 0.95, cw - 12, floor=0.75)
+        pg.text(cx + 12, cy + 11.5, st[3], bs, MUTED)
     # -- footer ---------------------------------------------------------------
-    fy2 = 988
-    pg.rect(M, fy2, W - 2 * M, 26, INK)
-    pg.text(W / 2, fy2 + 6, "WEDNESDAY 25 NOVEMBER 2026 - SOURCES: REUTERS, "
-            "AP, AFP, XINHUA, WHO, UEFA", 1.55, PAPER, bold=True,
+    fy2 = 996
+    pg.rect(M, fy2, W - 2 * M, 22, INK)
+    pg.text(W / 2, fy2 + 5, "WEDNESDAY 25 NOVEMBER 2026 - SOURCES: REUTERS, "
+            "AP, AFP, XINHUA, WHO, UEFA, BEA, EPA", 1.35, PAPER, bold=True,
             align="center")
     return pg
 
