@@ -1,4 +1,4 @@
-# news-image-20261125 — main.py (V4)
+# news-image-20261125 — main.py (V5)
 #
 # A one-page broadsheet that sums up the world's news of Wednesday
 # 25 November 2026 in a single image. Python 3.13, standard library only,
@@ -10,22 +10,27 @@
 # Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 #   mkdir -p out && MAKEFUN_OUTPUT_DIR=out python3 main.py
 #
-# V4 changes over V3 (audit in work/v4/AUDIT.md, 12 fixes): the "0"
-# glyph is a fat oval (probe-proven: every zero on the page read
-# correctly, where the old zero read as D); the UCL Wednesday wrap
-# leaves the wire grid and becomes a full-width strip carrying ALL NINE
-# finals (wire grid is 30 briefs in 10 even rows); #15's headline is
-# two lines so its body clears the chip; the map gains real seas
-# (Mediterranean, Black Sea, Caspian, Red Sea) as inlets; the masthead
-# subtitle stops duplicating the date band; the scene gets a bigger
-# two-layer flame, a wider smoke plume, an attached capsule with a
-# real leader line, and panel grid lines; the caption says ONE WEEK
-# (what the sources say); wire floors rise and the one overflowing
-# headline is trimmed; #8's body no longer splits BREACHED-DATA;
-# chart values grow to 1.4 with bars trimmed to fit; the launch pad
-# gains a tower line and a top-edge highlight. No fact on the page
-# changes (Shenzhou-24, core PCE and the Iowa detonation re-verified
-# 2026-11-26 ~07:30 WIB; UCL finals verified in V3).
+# V5 changes over V4 (audit in work/v5/AUDIT.md, 13 problems; probes in
+# work/v5/probe.py): the wire rows get real air (row height 21 -> 23,
+# second line 11.5 -> 12.5, so the clear gap between rows is 1.95px
+# worst case instead of V4's 0.95px — the audit's >= 3px target is
+# unaffordable in the vertical budget, and a fixed-0.85 variant that
+# reached 2.85px made the wire OCR worse, 9/12 vs 10/12, so the
+# second lines stay on fit_scale) funded by a shorter feature row
+# (198 -> 186) and the wire/UCL strip moving up; the UCL strip grows to
+# 1.0 with a 4.85px clear gap from the last wire row; the map labels
+# JIUQUAN/MOSCOW apart (Moscow left, Jiuquan below its dot), the five
+# unlabelled dots are dropped and the footer lists only the four
+# labelled cities; the map gains the Great Lakes, Java, Sulawesi and a
+# wider UK; the scene's station grows 40x14 -> 56x18 with a 12px
+# leader and the rocket body 50 -> 64px; the chart footnote grows to
+# 1.1 bold; #8's body is reworded to break at clause boundaries.
+# Probe verdicts (work/v5/probe.py): no lead-headline scale passes OCR
+# at 300px (2.6/2.8/3.0 all miss, and 2.8+ breaks the two-line wrap),
+# so the headline stays at 2.6; no "5" candidate beats the current
+# glyph at 1.4 bold, so the "5" stays. No fact on the page changes
+# (Shenzhou-24, core PCE, Iowa detonation and UCL finals re-verified
+# 2026-11-26 ~08:30 WIB).
 #
 # The page carries exactly 37 stories from that day's reporting
 # (Reuters, AP, AFP, Xinhua, WHO, UEFA, BEA, EPA and official releases):
@@ -310,8 +315,8 @@ RAIL = (1, "WAR", "JEDDAH",
 FEATURES = [
     (8, "WAR", "MOSCOW",
      "RUSSIA'S WAR DEAD PASS 490,000",
-     "At least 490,000 confirmed registered deaths in a breached-data "
-     "count; estimates 700,000 (Meduza/Mediazona).",
+     "A breached-data count confirms at least 490,000 registered "
+     "deaths; estimates reach 700,000 (Meduza/Mediazona).",
      "AT LEAST 490,000 DEAD"),
     (15, "POLITICS", "CANBERRA",
      "SOLOMONS SIGN SECURITY TREATY",
@@ -476,15 +481,19 @@ LAND = [
      (150, -37), (146, -39), (140, -38), (136, -35), (132, -32),
      (128, -32), (124, -33), (120, -34), (116, -35), (114, -32),
      (113, -26), (113, -22)],
-    # New Guinea, Borneo, Sumatra, UK, Japan (small islands)
+    # New Guinea, Borneo, Sumatra, Java, Sulawesi, UK, Japan
+    # (small islands). V5: Java and Sulawesi added, UK widened.
     [(131, -1), (136, -2), (141, -3), (146, -6), (147, -8), (143, -8),
      (138, -8), (134, -6), (131, -3)],
     [(109, 1), (113, 4), (117, 6), (119, 1), (117, -3), (112, -3),
      (109, -1)],
     [(95, 5), (98, 3), (101, 0), (104, -3), (106, -5), (103, -5),
      (100, -2), (97, 1), (95, 4)],
-    [(-5, 50), (-3, 53), (-1, 55), (-2, 58), (-4, 58), (-5, 55),
-     (-6, 52)],
+    [(105, -6), (108, -6.5), (111, -7), (114, -7.5), (114, -8.5),
+     (110, -8), (106, -7.5)],
+    [(119, 0), (121, -1), (123, -2), (122, -4), (120, -5), (119, -3)],
+    [(-6, 50), (-3, 53), (-1, 55), (-2, 58), (-5, 59), (-6, 55),
+     (-7, 52)],
     [(130, 31), (132, 33), (134, 35), (136, 37), (139, 39), (141, 42),
      (140, 44), (138, 42), (135, 38), (132, 34)],
 ]
@@ -503,17 +512,28 @@ SEAS = [
      (39, 16), (37, 20), (35, 24), (33, 27)],
 ]
 
+# The Great Lakes as PAPER inlets, same treatment as SEAS: without
+# them North America reads as a solid slab. Rough outlines from
+# general knowledge (Superior, Michigan, Huron, Erie, Ontario).
+LAKES = [
+    [(-92, 47), (-88, 48), (-84, 46.5), (-88, 46), (-92, 46.5)],
+    [(-87, 42), (-86, 45), (-85, 43), (-87, 41.5)],
+    [(-82, 44), (-80, 45.5), (-79, 43.5), (-81, 43)],
+    [(-80, 42.5), (-78, 43), (-79, 41.5), (-82, 42)],
+    [(-78, 44), (-76, 44), (-76, 43), (-79, 43.5)],
+]
+
 # Dots on the map: (lon, lat, label or None, label dx, label dy).
+# V5: the five unlabelled dots are dropped — a dot the reader cannot
+# match to a name is an unverifiable mark. Only the four labelled
+# cities remain, and the footer lists only those four.
+# V5: MOSCOW's label moves left (dx -70) and JIUQUAN's moves below its
+# dot (dy +6) so the two label boxes clear each other by >= 8px.
 MAP_DOTS = [
-    (98, 40, "JIUQUAN", -60, -4),
+    (98, 40, "JIUQUAN", -60, 6),
     (39, 21, "JEDDAH", 6, 6),
-    (37, 56, "MOSCOW", 8, -4),
+    (37, 56, "MOSCOW", -70, -4),
     (149, -35, "CANBERRA", -68, -4),
-    (-77, 39, None, 0, 0),
-    (0, 51, None, 0, 0),
-    (-93, 42, None, 0, 0),
-    (31, 46, None, 0, 0),
-    (-75, 10, None, 0, 0),
 ]
 
 DOT_RED = bytes((200, 60, 44))
@@ -525,7 +545,7 @@ def draw_map_panel(pg, fx, fy, fw, fh):
     pg.rect(fx + 12, fy + 12, 9, 9, BEAT["WORLD"])
     pg.text(fx + 27, fy + 11, "WORLD - THE DAY'S MAP", 1.15,
             BEAT["WORLD"], bold=True)
-    mx, my, mw, mh = fx + 12, fy + 30, fw - 24, 106
+    mx, my, mw, mh = fx + 12, fy + 32, fw - 24, 112
     for poly in LAND:
         pts = [(mx + (lon + 180) / 360.0 * mw,
                 my + (75 - lat) / 135.0 * mh) for lon, lat in poly]
@@ -534,23 +554,19 @@ def draw_map_panel(pg, fx, fy, fw, fh):
         pts = [(mx + (lon + 180) / 360.0 * mw,
                 my + (75 - lat) / 135.0 * mh) for lon, lat in sea]
         pg.poly(pts, PAPER)
+    for lake in LAKES:
+        pts = [(mx + (lon + 180) / 360.0 * mw,
+                my + (75 - lat) / 135.0 * mh) for lon, lat in lake]
+        pg.poly(pts, PAPER)
     pg.frame(mx, my, mw, mh, MUTED, 1)
     for lon, lat, label, dx, dy in MAP_DOTS:
         dxp = mx + (lon + 180) / 360.0 * mw
         dyp = my + (75 - lat) / 135.0 * mh
-        if label:
-            pg.rect(dxp - 2.5, dyp - 2.5, 5, 5, INK)
-            pg.rect(dxp - 1.5, dyp - 1.5, 3, 3, DOT_RED)
-            pg.text(dxp + dx, dyp + dy, label, 1.0, INK, bold=True)
-        else:
-            pg.rect(dxp - 1.5, dyp - 1.5, 3, 3, INK)
-            pg.rect(dxp - 1, dyp - 1, 2, 2, DOT_RED)
-    pg.text(fx + 12, fy + 142, "JIUQUAN - JEDDAH", 1.0, MUTED, bold=True)
-    pg.text(fx + 12, fy + 154, "MOSCOW - CANBERRA", 1.0, MUTED, bold=True)
-    pg.text(fx + 12, fy + 166, "WASHINGTON - LONDON", 1.0, MUTED,
-            bold=True)
-    pg.text(fx + 12, fy + 178, "IOWA - ODESA - CARTAGENA", 1.0, MUTED,
-            bold=True)
+        pg.rect(dxp - 2.5, dyp - 2.5, 5, 5, INK)
+        pg.rect(dxp - 1.5, dyp - 1.5, 3, 3, DOT_RED)
+        pg.text(dxp + dx, dyp + dy, label, 1.0, INK, bold=True)
+    pg.text(fx + 12, fy + 150, "JIUQUAN - JEDDAH", 1.0, MUTED, bold=True)
+    pg.text(fx + 12, fy + 162, "MOSCOW - CANBERRA", 1.0, MUTED, bold=True)
 
 # ------------------------------------------------------------ drawing -----
 
@@ -604,19 +620,22 @@ def scene_space(pg, x, y, w, h):
     pg.rect(x + 18, y + h - 38, 3, 28, PAD)
     pg.rect(x + 18, y + h - 38, 3, 3, bytes((200, 60, 44)))
     # Tiangong station, top right: core + two panel wings + capsule,
-    # a leader line down to its label
+    # a leader line down to its label. V5: core 40x14 -> 56x18, wings
+    # 30 -> 36, leader 7px -> 12px so the station reads at 300px.
     sx, sy = x + w - 150, y + 6
-    pg.rect(sx, sy, 40, 14, STAR)
-    pg.rect(sx - 36, sy + 3, 30, 9, RIM)
-    pg.rect(sx + 46, sy + 3, 30, 9, RIM)
-    for gx in (sx - 26, sx - 16, sx + 56, sx + 66):
-        pg.rect(gx, sy + 3, 1.5, 9, WINGLINE)
-    pg.rect(sx + 15, sy + 14, 12, 6, bytes((200, 60, 44)))
-    pg.line(sx + 21, sy + 20, sx + 21, sy + 27, STAR, 1.5)
-    pg.text(sx - 36, sy + 28, "TIANGONG", 1.1, STAR)
-    # rocket climbing toward the station
+    pg.rect(sx, sy, 56, 18, STAR)
+    pg.rect(sx - 40, sy + 4, 36, 10, RIM)
+    pg.rect(sx + 60, sy + 4, 36, 10, RIM)
+    for gx in (sx - 28, sx - 16, sx + 72, sx + 84):
+        pg.rect(gx, sy + 4, 1.5, 10, WINGLINE)
+    pg.rect(sx + 22, sy + 18, 12, 6, bytes((200, 60, 44)))
+    pg.line(sx + 28, sy + 24, sx + 28, sy + 36, STAR, 1.5)
+    pg.text(sx - 36, sy + 37, "TIANGONG", 1.1, STAR)
+    # rocket climbing toward the station. V5: body 50 -> 64px, flame
+    # lengthened to match; the base sits 2px higher so the fins and
+    # the flame tip stay inside the scene box.
     ang = math.radians(-52)
-    bx, by = x + 56, y + h - 16
+    bx, by = x + 56, y + h - 18
     ux, uy = math.cos(ang), math.sin(ang)
     vx, vy = -uy, ux
     def pt(along, side):
@@ -627,10 +646,10 @@ def scene_space(pg, x, y, w, h):
         pg.disc(bx - ux * d, by - uy * d, r, SMOKE, clip=box)
     # flame: wider and two-layer, same length as before so its tip
     # stays inside the scene
-    pg.poly([pt(8, -8), pt(-22, 0), pt(8, 8)], FLAME)
-    pg.poly([pt(8, -4.5), pt(-16, 0), pt(8, 4.5)], STAR)
-    pg.poly([pt(8, -9), pt(58, -9), pt(58, 9), pt(8, 9)], STAR)
-    pg.poly([pt(58, -9), pt(80, 0), pt(58, 9)], bytes((200, 60, 44)))
+    pg.poly([pt(8, -8), pt(-26, 0), pt(8, 8)], FLAME)
+    pg.poly([pt(8, -4.5), pt(-19, 0), pt(8, 4.5)], STAR)
+    pg.poly([pt(8, -9), pt(72, -9), pt(72, 9), pt(8, 9)], STAR)
+    pg.poly([pt(72, -9), pt(94, 0), pt(72, 9)], bytes((200, 60, 44)))
     pg.poly([pt(8, -9), pt(-6, -20), pt(14, -9)], bytes((200, 60, 44)))
     pg.poly([pt(8, 9), pt(-6, 20), pt(14, 9)], bytes((200, 60, 44)))
     # short captions in the dark bottom-right corner, clear of the arc
@@ -686,7 +705,7 @@ def draw():
         pg.text(bx + bl + 7, yy + 1, "-" + str(abs(val)) + "%", 1.4,
                 INK, bold=True)
     pg.text(rx + 14, ly + ch_h - 15, "*NIKKEI INTRADAY - ALL FIGURES "
-            "WEDNESDAY", 1.0, MUTED)
+            "WEDNESDAY", 1.1, MUTED, bold=True)
     ry = ly + ch_h + 12
     rh = ly + lh - ry
     pg.rect(rx, ry, rw, rh, CARD)
@@ -700,7 +719,7 @@ def draw():
         yy += 18
     pg.para(rx + 14, yy + 3, RAIL[4], 1.35, INK, rw - 28, 13.5)
     # -- feature row: 3 features + the world map panel ----------------------
-    fy, fh, gap = 520, 198, 12
+    fy, fh, gap = 516, 186, 12
     fw = (W - 2 * M - 3 * gap) / 4.0
     for i in range(4):
         fx = M + i * (fw + gap)
@@ -718,16 +737,16 @@ def draw():
         pg.para(fx + 12, yy + 2, st[4], 1.25, INK, fw - 24, 12.5)
         chip(pg, fx + 12, fy + fh - 33, st[5], 1.3)
     # -- the wire -------------------------------------------------------------
-    wy = 728
+    wy = 712
     pg.rect(M, wy - 6, W - 2 * M, 3, INK)
     pg.text(M, wy + 4, "THE WIRE - 31 MORE STORIES FROM THE DAY", 1.9,
             INK, bold=True)
     pg.text(W - M, wy + 6, "AS REPORTED ON THE DAY", 1.4, MUTED,
             bold=True, align="right")
     cols, rows = 3, 10
-    gx, gy = M, wy + 30
+    gx, gy = M, wy + 26
     cw = (W - 2 * M - (cols - 1) * 18) / cols
-    chh = 21
+    chh = 23
     for idx, st in enumerate(WIRE):
         cx = gx + (idx % cols) * (cw + 18)
         cy = gy + (idx // cols) * chh
@@ -735,14 +754,20 @@ def draw():
         pg.rect(cx, cy + 1.5, 6.5, 6.5, col)
         hs = pg.fit_scale(st[2], 1.15, cw - 12, floor=0.95)
         pg.text(cx + 12, cy, st[2], hs, INK, bold=True)
+        # V5b: second lines go back to fit_scale (0.95 where they fit)
+        # — the fixed-0.85 variant shrank the glyphs and the wire OCR
+        # got worse (9/12 vs V4's 10/12). Row gap at 0.95 is still
+        # 23 - 12.5 - 8.55 = 1.95px, twice V4's 0.95px.
         bs = pg.fit_scale(st[3], 0.95, cw - 12, floor=0.85)
-        pg.text(cx + 12, cy + 11.5, st[3], bs, MUTED)
+        pg.text(cx + 12, cy + 12.5, st[3], bs, MUTED)
     # UCL strip: all nine Wednesday finals, two lines at the wire's
-    # foot (this is story #63; the grid above holds the other 30)
-    pg.rect(M, wy + 241, W - 2 * M, 2, INK)
-    pg.rect(M, wy + 245, 8, 8, BEAT["SPORT"])
-    pg.text(M + 14, wy + 245, UCL_STRIP[0], 0.95, INK, bold=True)
-    pg.text(M + 14, wy + 256, UCL_STRIP[1], 0.95, INK, bold=True)
+    # foot (this is story #63; the grid above holds the other 30).
+    # V5: lines at 1.0, rule 4.95px clear of the last wire row
+    # (worst case: the HORMUZ second line at 0.95).
+    pg.rect(M, wy + 259, W - 2 * M, 2, INK)
+    pg.rect(M, wy + 263, 8, 8, BEAT["SPORT"])
+    pg.text(M + 14, wy + 263, UCL_STRIP[0], 1.0, INK, bold=True)
+    pg.text(M + 14, wy + 274, UCL_STRIP[1], 1.0, INK, bold=True)
     # -- footer ---------------------------------------------------------------
     fy2 = 996
     pg.rect(M, fy2, W - 2 * M, 22, INK)
