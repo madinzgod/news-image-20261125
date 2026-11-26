@@ -1,4 +1,4 @@
-# news-image-20261125 — main.py (V2)
+# news-image-20261125 — main.py (V4)
 #
 # A one-page broadsheet that sums up the world's news of Wednesday
 # 25 November 2026 in a single image. Python 3.13, standard library only,
@@ -10,24 +10,28 @@
 # Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 #   mkdir -p out && MAKEFUN_OUTPUT_DIR=out python3 main.py
 #
-# V3 changes over V2: verified UCL Wednesday finals added as a wire wrap
-# (pool #63, replacing Tuesday's Arsenal-Dortmund brief); a world map
-# panel takes the 4th feature-row slot (#36 demoted to the wire, its
-# story stays on the page); #8's headline shortened to two lines;
-# chart bars moved right so no bar touches its label; lead scene
-# reworked (atmospheric rim instead of stripe glow, streak clouds,
-# tapered smoke plume, visible launch pad, captioned station, short
-# captions clear of the Earth arc); lead headline as a 2-line wrap at
-# 2.6 with a taller scene; rail chip "JEDDAH THREATENED" finally drawn;
-# wire floors raised and longest second lines trimmed; footer is now a
-# pure source line (adds KPLER, CONF. BOARD). Font probes showed no
-# typeface change helps OCR (slashed zero reads as B — rejected), so
-# the 7x9 type stays as V2.
+# V4 changes over V3 (audit in work/v4/AUDIT.md, 12 fixes): the "0"
+# glyph is a fat oval (probe-proven: every zero on the page read
+# correctly, where the old zero read as D); the UCL Wednesday wrap
+# leaves the wire grid and becomes a full-width strip carrying ALL NINE
+# finals (wire grid is 30 briefs in 10 even rows); #15's headline is
+# two lines so its body clears the chip; the map gains real seas
+# (Mediterranean, Black Sea, Caspian, Red Sea) as inlets; the masthead
+# subtitle stops duplicating the date band; the scene gets a bigger
+# two-layer flame, a wider smoke plume, an attached capsule with a
+# real leader line, and panel grid lines; the caption says ONE WEEK
+# (what the sources say); wire floors rise and the one overflowing
+# headline is trimmed; #8's body no longer splits BREACHED-DATA;
+# chart values grow to 1.4 with bars trimmed to fit; the launch pad
+# gains a tower line and a top-edge highlight. No fact on the page
+# changes (Shenzhou-24, core PCE and the Iowa detonation re-verified
+# 2026-11-26 ~07:30 WIB; UCL finals verified in V3).
 #
 # The page carries exactly 37 stories from that day's reporting
 # (Reuters, AP, AFP, Xinhua, WHO, UEFA, BEA, EPA and official releases):
 #   1 lead, 1 markets chart panel, 1 feature in the rail,
-#   3 features + 1 world map panel in a row, and 31 one-line wire briefs.
+#   3 features + 1 world map panel in a row, 30 one-line wire briefs,
+#   and a full-width UCL strip with all nine Wednesday finals.
 
 import math
 import os
@@ -67,7 +71,12 @@ FONT = {
     "X": ("0100010", "0100010", "0010100", "0001000", "0001000", "0001000", "0010100", "0100010", "0100010"),
     "Y": ("0100010", "0100010", "0010100", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000"),
     "Z": ("0111110", "0000010", "0000100", "0001000", "0010000", "0100000", "0100000", "0100000", "0111110"),
-    "0": ("0111100", "0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0100010", "0111100"),
+    # V4: fat oval zero — 7 wide with chamfered top/bottom, so it can
+    # never read as D. Probe-proven (work/v4/AUDIT.md): every zero on
+    # the page ("490,000", "17,000", "60 KM", "$60,000", "40") reads
+    # correctly, where the old rounded-rectangle zero read as D.
+    "0": ("0011100", "0100010", "1000001", "1000001", "1000001",
+          "1000001", "1000001", "0100010", "0011100"),
     "1": ("0001000", "0011000", "0001000", "0001000", "0001000", "0001000", "0001000", "0001000", "0011100"),
     "2": ("0011100", "0100010", "0000010", "0000110", "0001000", "0010000", "0100000", "0100000", "0111110"),
     "3": ("0111100", "0000010", "0000010", "0011100", "0000010", "0000010", "0000010", "0000010", "0111100"),
@@ -262,6 +271,7 @@ GLOW2 = bytes((30, 44, 72))
 SMOKE = bytes((150, 158, 175))
 PAD = bytes((8, 12, 22))
 CLOUD = bytes((96, 148, 196))
+WINGLINE = bytes((70, 120, 170))
 
 BEAT = {
     "WAR": bytes((163, 30, 30)),
@@ -300,11 +310,11 @@ RAIL = (1, "WAR", "JEDDAH",
 FEATURES = [
     (8, "WAR", "MOSCOW",
      "RUSSIA'S WAR DEAD PASS 490,000",
-     "At least 490,000 confirmed registered deaths, breached-data "
+     "At least 490,000 confirmed registered deaths in a breached-data "
      "count; estimates 700,000 (Meduza/Mediazona).",
      "AT LEAST 490,000 DEAD"),
     (15, "POLITICS", "CANBERRA",
-     "AUSTRALIA, SOLOMONS SIGN SECURITY TREATY",
+     "SOLOMONS SIGN SECURITY TREATY",
      "Treaty signed in Canberra makes Australia the Solomons' primary "
      "security partner; no foreign base allowed.",
      "PARTNER OF CHOICE"),
@@ -319,12 +329,11 @@ FEATURES = [
 # draw_map_panel), not a story. #36 was demoted to the wire so the map
 # has a slot; its story stays on the page.
 
-# Wire briefs: (pool, beat, headline, one terse line). 31 of them,
+# Wire briefs: (pool, beat, headline, one terse line). 30 of them,
 # reordered round-robin by beat so no beat is buried at the bottom.
-# #63 is the verified Wednesday-night UCL wrap (all nine finals
-# cross-checked: Times / OneFootball / Sportradar); it replaces #53,
-# Tuesday's Arsenal-Dortmund draw. #36 joins the wire from the
-# feature row to make room for the world map panel.
+# #63 (the verified Wednesday-night UCL wrap) is a full-width strip
+# under the grid (UCL_STRIP), not a grid brief. #36 joins the wire
+# from the feature row to make room for the world map panel.
 WIRE = [
     (2, "WAR", "DRONE HITS RIYADH'S TALLEST TOWER AGAIN",
      "RIYADH - PIF TOWER HIT; AT LEAST 11 HURT"),
@@ -332,7 +341,7 @@ WIRE = [
      "WASHINGTON - CAPACITY PROBE, 16 PARTNERS"),
     (29, "BUSINESS", "NVIDIA SLIDES AS HYPE FADES",
      "NEW YORK - NVIDIA -5.9%; DOW ROSE 0.9%"),
-    (37, "WORLD", "ARMY DETONATES 9,500 POUNDS OF LEAD AZIDE",
+    (37, "WORLD", "ARMY DETONATES 9,500 LB OF LEAD AZIDE",
      "IOWA - BLAST DONE; EPA: NO LEAD DETECTED"),
     (48, "SCIENCE", "OLDEST QUASAR 13.1 BILLION YEARS BACK",
      "SPACE - EUCLID FIND; BLACK HOLE 360M SUNS"),
@@ -358,8 +367,6 @@ WIRE = [
      "NEW YORK - $59,257.71; $4.71BN ETF OUTFLOW"),
     (41, "WORLD", "25 HELD HOSTAGE IN SUPERMARKET",
      "CARTAGENA - HIJACK FAILS; FIVE FREED"),
-    (63, "SPORT", "LILLE STUN BAYERN 2-1 IN UCL",
-     "LIVERPOOL 3-0; BARCA 4-1; PSG 2-2; UTD 2-2"),
     (5, "WAR", "RUSSIA CALLS SHIP STRIKES 'TERRORISM'",
      "MOSCOW - BALTIC, LIBYA STRIKES DENOUNCED"),
     (16, "POLITICS", "SARKOZY, BRUNI ORDERED TO TRIAL",
@@ -390,7 +397,17 @@ WIRE = [
      "HORMUZ - 8.5M BARRELS A DAY, KPLER SAYS"),
 ]
 
-STORY_COUNT = 1 + 1 + 1 + len(FEATURES) + len(WIRE)
+# The UCL Wednesday wrap (#63) is a full-width strip under the wire
+# grid, not a grid brief: all nine verified finals, two lines.
+# (V3 carried only five of the nine in a grid brief.)
+UCL_STRIP = [
+    "UCL WEDNESDAY - ALL NINE FINALS: LILLE 2-1 BAYERN - LIVERPOOL "
+    "3-0 BRUGGE - BARCELONA 4-1 SABAH - PSG 2-2 ROMA",
+    "MAN UTD 2-2 SPORTING - INTER 2-0 STUTTGART - ATLETI 2-0 VIKING "
+    "- FENERBAHCE 1-0 SHAKHTAR - VILLARREAL 1-0 SLAVIA",
+]
+
+STORY_COUNT = 1 + 1 + 1 + len(FEATURES) + len(WIRE) + 1
 assert STORY_COUNT == 37, STORY_COUNT
 
 # ------------------------------------------------------------ world map ---
@@ -472,6 +489,20 @@ LAND = [
      (140, 44), (138, 42), (135, 38), (132, 34)],
 ]
 
+# Seas carved out of the land polygons as PAPER inlets (lon, lat):
+# without them Eurasia and Africa fuse into one blob. Mediterranean
+# (widens the existing strait), Black Sea, Caspian Sea, Red Sea.
+SEAS = [
+    [(-6, 34.5), (3, 37), (10, 36.5), (19, 34), (28, 35), (33, 35),
+     (33, 30.5), (28, 31.5), (19, 31), (10, 32), (3, 35), (-6, 34)],
+    [(28, 44), (32, 45.5), (36, 46.5), (40, 45), (41, 43), (38, 41.5),
+     (33, 41.5), (29, 42.5)],
+    [(47, 42), (49, 46), (51, 47), (53, 44), (54, 40), (52, 37.5),
+     (49, 38), (47, 40)],
+    [(35, 28), (37, 24), (39, 20), (41, 16), (43, 12), (41, 12),
+     (39, 16), (37, 20), (35, 24), (33, 27)],
+]
+
 # Dots on the map: (lon, lat, label or None, label dx, label dy).
 MAP_DOTS = [
     (98, 40, "JIUQUAN", -60, -4),
@@ -494,24 +525,31 @@ def draw_map_panel(pg, fx, fy, fw, fh):
     pg.rect(fx + 12, fy + 12, 9, 9, BEAT["WORLD"])
     pg.text(fx + 27, fy + 11, "WORLD - THE DAY'S MAP", 1.15,
             BEAT["WORLD"], bold=True)
-    mx, my, mw, mh = fx + 12, fy + 30, fw - 24, 100
+    mx, my, mw, mh = fx + 12, fy + 30, fw - 24, 106
     for poly in LAND:
         pts = [(mx + (lon + 180) / 360.0 * mw,
                 my + (75 - lat) / 135.0 * mh) for lon, lat in poly]
         pg.poly(pts, CLOUD)
+    for sea in SEAS:
+        pts = [(mx + (lon + 180) / 360.0 * mw,
+                my + (75 - lat) / 135.0 * mh) for lon, lat in sea]
+        pg.poly(pts, PAPER)
     pg.frame(mx, my, mw, mh, MUTED, 1)
     for lon, lat, label, dx, dy in MAP_DOTS:
         dxp = mx + (lon + 180) / 360.0 * mw
         dyp = my + (75 - lat) / 135.0 * mh
-        pg.rect(dxp - 2.5, dyp - 2.5, 5, 5, INK)
-        pg.rect(dxp - 1.5, dyp - 1.5, 3, 3, DOT_RED)
         if label:
+            pg.rect(dxp - 2.5, dyp - 2.5, 5, 5, INK)
+            pg.rect(dxp - 1.5, dyp - 1.5, 3, 3, DOT_RED)
             pg.text(dxp + dx, dyp + dy, label, 1.0, INK, bold=True)
-    pg.text(fx + 12, fy + 138, "JIUQUAN - JEDDAH", 1.0, MUTED, bold=True)
-    pg.text(fx + 12, fy + 150, "MOSCOW - CANBERRA", 1.0, MUTED, bold=True)
-    pg.text(fx + 12, fy + 162, "WASHINGTON - LONDON", 1.0, MUTED,
+        else:
+            pg.rect(dxp - 1.5, dyp - 1.5, 3, 3, INK)
+            pg.rect(dxp - 1, dyp - 1, 2, 2, DOT_RED)
+    pg.text(fx + 12, fy + 142, "JIUQUAN - JEDDAH", 1.0, MUTED, bold=True)
+    pg.text(fx + 12, fy + 154, "MOSCOW - CANBERRA", 1.0, MUTED, bold=True)
+    pg.text(fx + 12, fy + 166, "WASHINGTON - LONDON", 1.0, MUTED,
             bold=True)
-    pg.text(fx + 12, fy + 174, "IOWA - ODESA - CARTAGENA", 1.0, MUTED,
+    pg.text(fx + 12, fy + 178, "IOWA - ODESA - CARTAGENA", 1.0, MUTED,
             bold=True)
 
 # ------------------------------------------------------------ drawing -----
@@ -530,11 +568,11 @@ def chip(pg, x, y, text, s=1.6):
 
 def scene_space(pg, x, y, w, h):
     """The lead's night-launch scene: stars, Earth arc, rocket, station.
-    V3 rework: the straight glow stripes are gone — the atmosphere is a
-    faint disc hugging the Earth arc; clouds are horizontal streaks,
-    not discs; smoke is a tapered plume; the launch pad sits clear of
-    the arc; the station has a truss, mast and a leader line to its
-    label; the two caption lines are short and sit in the dark corner
+    V4 rework: the smoke is a widening trail of puffs clipped to the
+    scene box; the flame is wider and two-layer; the capsule is
+    attached to the core with a real leader line to its label; the
+    solar wings carry grid lines; the launch pad has a top-edge
+    highlight and a tower light. Captions sit in the dark corner
     clear of the arc."""
     pg.rect(x, y, w, h, NIGHT)
     box = (x, y, w, h)
@@ -562,16 +600,19 @@ def scene_space(pg, x, y, w, h):
             pg.rect(sx + r / 2 - 0.5, sy - 3, 1, 7, STAR)
     # launch pad and tower at the rocket's base, clear of the Earth arc
     pg.rect(x + 14, y + h - 10, 50, 10, PAD)
+    pg.rect(x + 14, y + h - 10, 50, 2, RIM)
     pg.rect(x + 18, y + h - 38, 3, 28, PAD)
+    pg.rect(x + 18, y + h - 38, 3, 3, bytes((200, 60, 44)))
     # Tiangong station, top right: core + two panel wings + capsule,
-    # a truss and mast, and a leader line down to its label
+    # a leader line down to its label
     sx, sy = x + w - 150, y + 6
     pg.rect(sx, sy, 40, 14, STAR)
     pg.rect(sx - 36, sy + 3, 30, 9, RIM)
     pg.rect(sx + 46, sy + 3, 30, 9, RIM)
-    pg.rect(sx + 19, sy + 14, 2, 6, STAR)
-    pg.rect(sx + 15, sy + 20, 12, 5, bytes((200, 60, 44)))
-    pg.rect(sx + 21, sy + 14, 1.5, 4, STAR)
+    for gx in (sx - 26, sx - 16, sx + 56, sx + 66):
+        pg.rect(gx, sy + 3, 1.5, 9, WINGLINE)
+    pg.rect(sx + 15, sy + 14, 12, 6, bytes((200, 60, 44)))
+    pg.line(sx + 21, sy + 20, sx + 21, sy + 27, STAR, 1.5)
     pg.text(sx - 36, sy + 28, "TIANGONG", 1.1, STAR)
     # rocket climbing toward the station
     ang = math.radians(-52)
@@ -580,19 +621,20 @@ def scene_space(pg, x, y, w, h):
     vx, vy = -uy, ux
     def pt(along, side):
         return (bx + ux * along + vx * side, by + uy * along + vy * side)
-    # smoke plume trailing the nozzle: a tapered cone, down and left
-    pg.poly([(bx - ux * 4 + vx * 4, by - uy * 4 + vy * 4),
-             (bx - ux * 4 - vx * 4, by - uy * 4 - vy * 4),
-             (bx - ux * 42 - vx * 13, by - uy * 42 - vy * 13),
-             (bx - ux * 42 + vx * 13, by - uy * 42 + vy * 13)], SMOKE)
-    pg.disc(bx - ux * 14, by - uy * 14, 5, SMOKE, clip=box)
-    pg.poly([pt(8, -6), pt(-22, 0), pt(8, 6)], FLAME)
+    # smoke plume trailing the nozzle: a widening trail of puffs,
+    # clipped to the scene box so nothing bleeds into the body text
+    for d, r in ((8, 5), (14, 7), (20, 8), (26, 9)):
+        pg.disc(bx - ux * d, by - uy * d, r, SMOKE, clip=box)
+    # flame: wider and two-layer, same length as before so its tip
+    # stays inside the scene
+    pg.poly([pt(8, -8), pt(-22, 0), pt(8, 8)], FLAME)
+    pg.poly([pt(8, -4.5), pt(-16, 0), pt(8, 4.5)], STAR)
     pg.poly([pt(8, -9), pt(58, -9), pt(58, 9), pt(8, 9)], STAR)
     pg.poly([pt(58, -9), pt(80, 0), pt(58, 9)], bytes((200, 60, 44)))
     pg.poly([pt(8, -9), pt(-6, -20), pt(14, -9)], bytes((200, 60, 44)))
     pg.poly([pt(8, 9), pt(-6, 20), pt(14, 9)], bytes((200, 60, 44)))
     # short captions in the dark bottom-right corner, clear of the arc
-    pg.text(x + w - 12, y + h - 27, "ALI, 40 - 5-10 DAYS", 1.15, STAR,
+    pg.text(x + w - 12, y + h - 27, "ALI, 40 - ONE WEEK", 1.15, STAR,
             align="right")
     pg.text(x + w - 12, y + h - 12, "LONG MARCH-2F - 08:18", 1.15, STAR,
             align="right")
@@ -604,7 +646,7 @@ def draw():
     # -- masthead ---------------------------------------------------------
     pg.text(W / 2, 24, "THE WORLD'S NEWS", 7.2, INK, bold=True,
             align="center")
-    pg.text(M, 94, "ONE DAY - ONE PAGE - 37 STORIES", 1.6, MUTED, bold=True)
+    pg.text(M, 94, "ONE DAY - ONE PAGE", 1.6, MUTED, bold=True)
     pg.text(W - M, 94, "ALL THE NEWS OF ONE WEDNESDAY", 1.6, MUTED,
             bold=True, align="right")
     pg.rect(M, 116, W - 2 * M, 3, INK)
@@ -635,13 +677,13 @@ def draw():
     pg.text(rx + 14, ly + 36, "ASIA STOCKS TUMBLE", 2.4, INK, bold=True)
     pg.text(rx + 14, ly + 61, "ON TARIFF THREATS", 2.4, INK, bold=True)
     bx = rx + 120
-    bw = rw - 120 - 66
+    bw = rw - 120 - 76
     for i, (name, val) in enumerate(CHART_BARS):
         yy = ly + 94 + i * 20
         pg.text(rx + 14, yy + 1, name, 1.15, MUTED, bold=True)
         bl = bw * abs(val) / 5.3
         pg.rect(bx, yy, bl, 13, BEAT["BUSINESS"])
-        pg.text(bx + bl + 7, yy + 1, "-" + str(abs(val)) + "%", 1.3,
+        pg.text(bx + bl + 7, yy + 1, "-" + str(abs(val)) + "%", 1.4,
                 INK, bold=True)
     pg.text(rx + 14, ly + ch_h - 15, "*NIKKEI INTRADAY - ALL FIGURES "
             "WEDNESDAY", 1.0, MUTED)
@@ -682,8 +724,8 @@ def draw():
             INK, bold=True)
     pg.text(W - M, wy + 6, "AS REPORTED ON THE DAY", 1.4, MUTED,
             bold=True, align="right")
-    cols, rows = 3, 11
-    gx, gy = M, wy + 34
+    cols, rows = 3, 10
+    gx, gy = M, wy + 30
     cw = (W - 2 * M - (cols - 1) * 18) / cols
     chh = 21
     for idx, st in enumerate(WIRE):
@@ -691,10 +733,16 @@ def draw():
         cy = gy + (idx // cols) * chh
         col = BEAT[st[1]]
         pg.rect(cx, cy + 1.5, 6.5, 6.5, col)
-        hs = pg.fit_scale(st[2], 1.15, cw - 12, floor=0.90)
+        hs = pg.fit_scale(st[2], 1.15, cw - 12, floor=0.95)
         pg.text(cx + 12, cy, st[2], hs, INK, bold=True)
-        bs = pg.fit_scale(st[3], 0.95, cw - 12, floor=0.80)
+        bs = pg.fit_scale(st[3], 0.95, cw - 12, floor=0.85)
         pg.text(cx + 12, cy + 11.5, st[3], bs, MUTED)
+    # UCL strip: all nine Wednesday finals, two lines at the wire's
+    # foot (this is story #63; the grid above holds the other 30)
+    pg.rect(M, wy + 241, W - 2 * M, 2, INK)
+    pg.rect(M, wy + 245, 8, 8, BEAT["SPORT"])
+    pg.text(M + 14, wy + 245, UCL_STRIP[0], 0.95, INK, bold=True)
+    pg.text(M + 14, wy + 256, UCL_STRIP[1], 0.95, INK, bold=True)
     # -- footer ---------------------------------------------------------------
     fy2 = 996
     pg.rect(M, fy2, W - 2 * M, 22, INK)
