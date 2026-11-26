@@ -1,4 +1,4 @@
-# news-image-20261125 — main.py (V5)
+# news-image-20261125 — main.py (V6)
 #
 # A one-page broadsheet that sums up the world's news of Wednesday
 # 25 November 2026 in a single image. Python 3.13, standard library only,
@@ -10,27 +10,20 @@
 # Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 #   mkdir -p out && MAKEFUN_OUTPUT_DIR=out python3 main.py
 #
-# V5 changes over V4 (audit in work/v5/AUDIT.md, 13 problems; probes in
-# work/v5/probe.py): the wire rows get real air (row height 21 -> 23,
-# second line 11.5 -> 12.5, so the clear gap between rows is 1.95px
-# worst case instead of V4's 0.95px — the audit's >= 3px target is
-# unaffordable in the vertical budget, and a fixed-0.85 variant that
-# reached 2.85px made the wire OCR worse, 9/12 vs 10/12, so the
-# second lines stay on fit_scale) funded by a shorter feature row
-# (198 -> 186) and the wire/UCL strip moving up; the UCL strip grows to
-# 1.0 with a 4.85px clear gap from the last wire row; the map labels
-# JIUQUAN/MOSCOW apart (Moscow left, Jiuquan below its dot), the five
-# unlabelled dots are dropped and the footer lists only the four
-# labelled cities; the map gains the Great Lakes, Java, Sulawesi and a
-# wider UK; the scene's station grows 40x14 -> 56x18 with a 12px
-# leader and the rocket body 50 -> 64px; the chart footnote grows to
-# 1.1 bold; #8's body is reworded to break at clause boundaries.
-# Probe verdicts (work/v5/probe.py): no lead-headline scale passes OCR
-# at 300px (2.6/2.8/3.0 all miss, and 2.8+ breaks the two-line wrap),
-# so the headline stays at 2.6; no "5" candidate beats the current
-# glyph at 1.4 bold, so the "5" stays. No fact on the page changes
-# (Shenzhou-24, core PCE, Iowa detonation and UCL finals re-verified
-# 2026-11-26 ~08:30 WIB).
+# V6 changes over V5 (audit in work/v6/AUDIT.md, 17 problems; probes in
+# work/v6/probe*.py): the wire rows get a real 2.95px clear gap (chh 23
+# -> 24, funded by a shorter lead lh 334 -> 326 and feature row fy 516
+# -> 510, fh 186 -> 182) and the UCL strip is decoupled from the wire to
+# absolute y (rule 971, lines 975/986) so the freed space goes to the
+# wire/strip gap (4.95 -> 5.95px); the DHAKA second line is reworded to
+# "DHAKA - 17,000 TAKA; DOUBLE SOUGHT" so it renders at 0.95 instead of
+# the 0.85 floor (fact preserved per STORIES.md #36: workers had
+# demanded a doubling); the chart values go 1.4 -> 1.5 bold, probe-proven
+# (work/v6/probe4b) to read all four values correctly in isolation where
+# 1.3/1.4/1.6/1.7 bold all read "5" as "3" — the V5 -5.3% gate pass was
+# an artifact of a misread elsewhere. The UCL rule is KEPT (probe2:
+# removing it makes row 9 read worse, not better). No other fact on the
+# page changes.
 #
 # The page carries exactly 37 stories from that day's reporting
 # (Reuters, AP, AFP, Xinhua, WHO, UEFA, BEA, EPA and official releases):
@@ -393,7 +386,7 @@ WIRE = [
     (25, "POLITICS", "GERMANS TURN AGAINST UKRAINE AID",
      "BERLIN - 53% OPPOSE AID, SURVEY FINDS"),
     (36, "BUSINESS", "GARMENT WAGE UP 36% TO $139",
-     "DHAKA - 17,000 TAKA; WORKERS SOUGHT DOUBLE"),
+     "DHAKA - 17,000 TAKA; DOUBLE SOUGHT"),
     (38, "WORLD", "CNN: CIA, ODNI HIT BY CYBERATTACK",
      "WASHINGTON - ODNI: NO CLASSIFIED DATA HIT"),
     (9, "WAR", "RSF COUNTERINTELLIGENCE CHIEF DEFECTS",
@@ -675,7 +668,7 @@ def draw():
     pg.text(W - M - 14, 137, "37 STORIES - SIX BEATS", 1.8, PAPER,
             bold=True, align="right")
     # -- lead ---------------------------------------------------------------
-    lx, ly, lw, lh = M, TOP, 574, 334
+    lx, ly, lw, lh = M, TOP, 574, 326
     pg.rect(lx, ly, lw, lh, CARD)
     pg.frame(lx, ly, lw, lh, INK, 2)
     kicker(pg, lx + 16, ly + 14, LEAD)
@@ -702,7 +695,7 @@ def draw():
         pg.text(rx + 14, yy + 1, name, 1.15, MUTED, bold=True)
         bl = bw * abs(val) / 5.3
         pg.rect(bx, yy, bl, 13, BEAT["BUSINESS"])
-        pg.text(bx + bl + 7, yy + 1, "-" + str(abs(val)) + "%", 1.4,
+        pg.text(bx + bl + 7, yy + 1, "-" + str(abs(val)) + "%", 1.5,
                 INK, bold=True)
     pg.text(rx + 14, ly + ch_h - 15, "*NIKKEI INTRADAY - ALL FIGURES "
             "WEDNESDAY", 1.1, MUTED, bold=True)
@@ -719,7 +712,7 @@ def draw():
         yy += 18
     pg.para(rx + 14, yy + 3, RAIL[4], 1.35, INK, rw - 28, 13.5)
     # -- feature row: 3 features + the world map panel ----------------------
-    fy, fh, gap = 516, 186, 12
+    fy, fh, gap = 510, 182, 12
     fw = (W - 2 * M - 3 * gap) / 4.0
     for i in range(4):
         fx = M + i * (fw + gap)
@@ -737,7 +730,7 @@ def draw():
         pg.para(fx + 12, yy + 2, st[4], 1.25, INK, fw - 24, 12.5)
         chip(pg, fx + 12, fy + fh - 33, st[5], 1.3)
     # -- the wire -------------------------------------------------------------
-    wy = 712
+    wy = 702
     pg.rect(M, wy - 6, W - 2 * M, 3, INK)
     pg.text(M, wy + 4, "THE WIRE - 31 MORE STORIES FROM THE DAY", 1.9,
             INK, bold=True)
@@ -746,7 +739,7 @@ def draw():
     cols, rows = 3, 10
     gx, gy = M, wy + 26
     cw = (W - 2 * M - (cols - 1) * 18) / cols
-    chh = 23
+    chh = 24
     for idx, st in enumerate(WIRE):
         cx = gx + (idx % cols) * (cw + 18)
         cy = gy + (idx // cols) * chh
@@ -754,20 +747,21 @@ def draw():
         pg.rect(cx, cy + 1.5, 6.5, 6.5, col)
         hs = pg.fit_scale(st[2], 1.15, cw - 12, floor=0.95)
         pg.text(cx + 12, cy, st[2], hs, INK, bold=True)
-        # V5b: second lines go back to fit_scale (0.95 where they fit)
-        # — the fixed-0.85 variant shrank the glyphs and the wire OCR
-        # got worse (9/12 vs V4's 10/12). Row gap at 0.95 is still
-        # 23 - 12.5 - 8.55 = 1.95px, twice V4's 0.95px.
+        # V6: second lines stay on fit_scale (0.95 where they fit).
+        # Row gap at 0.95 is 24 - 12.5 - 8.55 = 2.95px, up from V5's
+        # 1.95px (the audit's >= 3px target, now essentially met).
         bs = pg.fit_scale(st[3], 0.95, cw - 12, floor=0.85)
         pg.text(cx + 12, cy + 12.5, st[3], bs, MUTED)
     # UCL strip: all nine Wednesday finals, two lines at the wire's
     # foot (this is story #63; the grid above holds the other 30).
-    # V5: lines at 1.0, rule 4.95px clear of the last wire row
-    # (worst case: the HORMUZ second line at 0.95).
-    pg.rect(M, wy + 259, W - 2 * M, 2, INK)
-    pg.rect(M, wy + 263, 8, 8, BEAT["SPORT"])
-    pg.text(M + 14, wy + 263, UCL_STRIP[0], 1.0, INK, bold=True)
-    pg.text(M + 14, wy + 274, UCL_STRIP[1], 1.0, INK, bold=True)
+    # V6: decoupled from wy to absolute y (rule 971, lines 975/986) so
+    # the space freed by moving the wire up goes to the wire/strip
+    # gap (5.95px) instead of dead space below the strip. The rule is
+    # KEPT: probe2 showed removing it makes row 9 read worse.
+    pg.rect(M, 971, W - 2 * M, 2, INK)
+    pg.rect(M, 975, 8, 8, BEAT["SPORT"])
+    pg.text(M + 14, 975, UCL_STRIP[0], 1.0, INK, bold=True)
+    pg.text(M + 14, 986, UCL_STRIP[1], 1.0, INK, bold=True)
     # -- footer ---------------------------------------------------------------
     fy2 = 996
     pg.rect(M, fy2, W - 2 * M, 22, INK)
