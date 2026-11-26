@@ -832,8 +832,11 @@ def draw():
     pg.text(M + 14, 975, UCL_STRIP[0], 1.05, INK, bold=True)
     pg.text(M + 14, 986, UCL_STRIP[1], 1.05, INK, bold=True)
     # -- footer ---------------------------------------------------------------
+    # V17: full-bleed — the band meets the frame's side bars (x 12-14 /
+    # 1010-1012) so the bottom corners close; same y (996), height (22),
+    # colour; no text moves. Was pg.rect(M, fy2, W - 2 * M, 22, INK).
     fy2 = 996
-    pg.rect(M, fy2, W - 2 * M, 22, INK)
+    pg.rect(12, fy2, 1000, 22, INK)
     pg.text(W / 2, fy2 + 5, "SOURCES: REUTERS, AP, AFP, XINHUA, WHO, "
             "UEFA, BEA, EPA, KPLER, CONF. BOARD", 1.35, PAPER, bold=True,
             align="center")
