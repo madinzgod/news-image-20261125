@@ -747,11 +747,15 @@ def draw():
         pg.rect(cx, cy + 1.5, 6.5, 6.5, col)
         hs = pg.fit_scale(st[2], 1.15, cw - 12, floor=0.95)
         pg.text(cx + 12, cy, st[2], hs, INK, bold=True)
-        # V6: second lines stay on fit_scale (0.95 where they fit).
-        # Row gap at 0.95 is 24 - 12.5 - 8.55 = 2.95px, up from V5's
-        # 1.95px (the audit's >= 3px target, now essentially met).
+        # V7: second lines at full INK (was MUTED). Same scales
+        # (fit_scale 0.95, floor 0.85), same geometry, same words —
+        # only the ink changes, for a stronger binarized signal
+        # (INK on PAPER 16.45:1 vs MUTED 6.61:1). Targets $139 and
+        # BITCOIN; the segmentation reshuffle may recover noise flips.
+        # Hierarchy now rests on weight only: bold headline vs
+        # regular second line.
         bs = pg.fit_scale(st[3], 0.95, cw - 12, floor=0.85)
-        pg.text(cx + 12, cy + 12.5, st[3], bs, MUTED)
+        pg.text(cx + 12, cy + 12.5, st[3], bs, INK)
     # UCL strip: all nine Wednesday finals, two lines at the wire's
     # foot (this is story #63; the grid above holds the other 30).
     # V6: decoupled from wy to absolute y (rule 971, lines 975/986) so
