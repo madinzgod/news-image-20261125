@@ -777,7 +777,7 @@ def draw():
     pg.rect(M, wy - 6, W - 2 * M, 3, INK)
     pg.text(M, wy + 4, "THE WIRE - 31 MORE STORIES FROM THE DAY", 1.9,
             INK, bold=True)
-    pg.text(W - M, wy + 6, "AS REPORTED ON THE DAY", 1.4, MUTED,
+    pg.text(W - M, wy + 6, "AS REPORTED ON THE DAY", 1.4, INK,
             bold=True, align="right")
     cols, rows = 3, 10
     gx, gy = M, wy + 26
