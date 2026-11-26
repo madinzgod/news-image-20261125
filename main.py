@@ -668,8 +668,12 @@ def draw():
     # -- masthead ---------------------------------------------------------
     pg.text(W / 2, 24, "THE WORLD'S NEWS", 7.2, INK, bold=True,
             align="center")
-    pg.text(M, 94, "ONE DAY - ONE PAGE", 1.6, MUTED, bold=True)
-    pg.text(W - M, 94, "ALL THE NEWS OF ONE WEDNESDAY", 1.6, MUTED,
+    # V18 F1 (variant A): masthead subtitles MUTED -> INK, same
+    # position/scale/bold — colour only, mirroring V16's proven
+    # wire-subtitle change. At 300px both subtitles garbled as thin
+    # grey lines; INK is 16.45:1 vs MUTED 6.61:1. No text moves.
+    pg.text(M, 94, "ONE DAY - ONE PAGE", 1.6, INK, bold=True)
+    pg.text(W - M, 94, "ALL THE NEWS OF ONE WEDNESDAY", 1.6, INK,
             bold=True, align="right")
     pg.rect(M, 116, W - 2 * M, 3, INK)
     # -- date band ----------------------------------------------------------
