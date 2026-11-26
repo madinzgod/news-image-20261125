@@ -657,6 +657,12 @@ def scene_space(pg, x, y, w, h):
 
 def draw():
     pg = Page(PAPER)
+    # V15 F1 (variant A): a 2px INK frame at a 12px margin closes the
+    # sheet into a finished broadsheet. No text moves: masthead
+    # glyphs start y=24 (10px below the top bar), content starts
+    # x=26 (12px inside the side bars), and the bottom bar
+    # (y=1021-1023) sits 3px clear of the footer band (ends 1018).
+    pg.frame(12, 12, 1000, 1011, INK, 2)
     M = 26
     TOP = 174
     # -- masthead ---------------------------------------------------------
