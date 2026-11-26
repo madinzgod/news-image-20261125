@@ -795,10 +795,18 @@ def draw():
     # the space freed by moving the wire up goes to the wire/strip
     # gap (5.95px) instead of dead space below the strip. The rule is
     # KEPT: probe2 showed removing it makes row 9 read worse.
+    # V12 F2 (variant B): the UCL strip text at 1.05 bold instead of
+    # 1.0, y positions back to V11 (975/986), rule at 971. Variant A
+    # (-2px) is reverted: it dropped the whole strip line 1 from the
+    # OCR. Rationale: every strip lever so far was vertical and all
+    # failed; the flip is a glyph-size failure (adjacent L's at 7px),
+    # so give the glyphs more pixels. Widths at 1.05: ~915/~940
+    # (<= 958); bottoms 984.45/995.45 < 996. Chart, map, scene,
+    # lead, wire byte-identical to V11.
     pg.rect(M, 971, W - 2 * M, 2, INK)
     pg.rect(M, 975, 8, 8, BEAT["SPORT"])
-    pg.text(M + 14, 975, UCL_STRIP[0], 1.0, INK, bold=True)
-    pg.text(M + 14, 986, UCL_STRIP[1], 1.0, INK, bold=True)
+    pg.text(M + 14, 975, UCL_STRIP[0], 1.05, INK, bold=True)
+    pg.text(M + 14, 986, UCL_STRIP[1], 1.05, INK, bold=True)
     # -- footer ---------------------------------------------------------------
     fy2 = 996
     pg.rect(M, fy2, W - 2 * M, 22, INK)
