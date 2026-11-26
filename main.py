@@ -566,7 +566,11 @@ def draw_map_panel(pg, fx, fy, fw, fh):
 def kicker(pg, x, y, story, s=1.7):
     beat, place = story[1], story[2]
     col = BEAT[beat]
-    pg.rect(x, y + 1, 9, 9, col)
+    # V14 F1 (variant A): kicker beat square 9 -> 11. Kicker text
+    # starts at x+15, so an 11px square ends 4px clear of it; no
+    # text moves. The map panel draws its own 9x9 square inline in
+    # draw_map_panel and is forbidden to touch, so it stays 9x9.
+    pg.rect(x, y + 1, 11, 11, col)
     pg.text(x + 15, y, beat + " - " + place, s, col, bold=True)
 
 def chip(pg, x, y, text, s=1.6):
@@ -777,7 +781,10 @@ def draw():
         cx = gx + (idx % cols) * (cw + 18)
         cy = gy + (idx // cols) * chh
         col = BEAT[st[1]]
-        pg.rect(cx, cy + 1.5, 6.5, 6.5, col)
+        # V14 F1 (variant A): wire beat square 6.5 -> 8.0. Headline
+        # starts at cx+12 (4px clear); second line at cy+12.5
+        # (square bottom cy+9.5, 3px clear). No text moves.
+        pg.rect(cx, cy + 1.5, 8.0, 8.0, col)
         hs = pg.fit_scale(st[2], 1.15, cw - 12, floor=0.95)
         pg.text(cx + 12, cy, st[2], hs, INK, bold=True)
         # V7: second lines at full INK (was MUTED). Same scales
