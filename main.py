@@ -688,14 +688,31 @@ def draw():
     kicker(pg, rx + 14, ly + 12, CHART, 1.6)
     pg.text(rx + 14, ly + 36, "ASIA STOCKS TUMBLE", 2.4, INK, bold=True)
     pg.text(rx + 14, ly + 61, "ON TARIFF THREATS", 2.4, INK, bold=True)
-    bx = rx + 120
-    bw = rw - 120 - 76
+    # V8 F1 (P1-P6): the chart values get ONE fixed column with real
+    # separation from the bars. V1-V7 put each value 7px after its own
+    # bar's end, so no value column existed, the longest bar pushed
+    # "-5.3%" to 8.5px from the frame, and "SOUTH KOREA" cleared its
+    # bar by only ~6px (it garbled as "SOUTH Ki TT"). Now: bars start
+    # further right (bx = rx+134, name zone 120px), bars are shorter
+    # (bw funds a 16px bar-to-value gap), and all four values sit at
+    # one fixed x (val_x), ending ~40px clear of the frame. Row names
+    # go MUTED -> INK at the same 1.15 bold: the name is part of the
+    # same OCR line as its value, and V7 proved the INK signal reads
+    # where MUTED garbles. Scales, words, numbers, colours otherwise
+    # identical; rows stay at 20px pitch (vertical air is the
+    # contingency, not this change). A/B note: a MUTED-names variant
+    # was rendered and gated this session (work/v8/entry-ab.png) —
+    # it lost -5.3% again (MISS) while recovering LILLE, also 11/13.
+    # The INK names are what make the chart row read, so they stay.
+    bx = rx + 134
+    val_x = rx + rw - 100
+    bw = val_x - 16 - bx
     for i, (name, val) in enumerate(CHART_BARS):
         yy = ly + 94 + i * 20
-        pg.text(rx + 14, yy + 1, name, 1.15, MUTED, bold=True)
+        pg.text(rx + 14, yy + 1, name, 1.15, INK, bold=True)
         bl = bw * abs(val) / 5.3
         pg.rect(bx, yy, bl, 13, BEAT["BUSINESS"])
-        pg.text(bx + bl + 7, yy + 1, "-" + str(abs(val)) + "%", 1.5,
+        pg.text(val_x, yy + 1, "-" + str(abs(val)) + "%", 1.5,
                 INK, bold=True)
     pg.text(rx + 14, ly + ch_h - 15, "*NIKKEI INTRADAY - ALL FIGURES "
             "WEDNESDAY", 1.1, MUTED, bold=True)
