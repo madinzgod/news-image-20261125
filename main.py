@@ -677,7 +677,15 @@ def draw():
         pg.text(lx + 16, hy, ln, 2.6, INK, bold=True)
         hy += 26
     scene_space(pg, lx + 16, hy + 6, lw - 32, 96)
-    by = hy + 6 + 96 + 6
+    # V10 F1 (variant A, the committed record): the lead body alone
+    # moves down 1px — the scene box, headline, chip and chart are
+    # byte-identical to V8. The PAKISTANI flip lives in body line 3
+    # (y = 402 -> 403); a 1px shift reshuffles segmentation in the
+    # lead block only. Body-to-chip clearance goes 15px -> 14px
+    # (still clear). Variant B (UCL strip up 1px, tried this session,
+    # md5 1093cc34) made the strip read WORSE ("WUC _WEDRESDAY",
+    # "LITLE O-1 GAYERN") — not committed; recorded in FACTCHECK-V10.
+    by = hy + 6 + 96 + 7
     pg.para(lx + 16, by, LEAD[4], 1.65, INK, lw - 32, 16)
     chip(pg, lx + 16, ly + lh - 36, LEAD[5])
     # -- right rail: chart + rail feature ----------------------------------
@@ -707,26 +715,22 @@ def draw():
     bx = rx + 134
     val_x = rx + rw - 100
     bw = val_x - 16 - bx
-    # V9 F1 (P1-P2, P10-P11): the pitch contingency from FACTCHECK-V8.
-    # V8 fixed -5.3% honestly but the geometry reshuffle brought back
-    # the two V6 noise flips in UNCHANGED text ("PAKISTANT", "LITLE").
-    # The page reads correctly to the eye; the flips are tesseract
-    # segmentation noise, so this is a cheap, reversible reshuffle,
-    # not a readability fix: row pitch 20 -> 21, bars start ly+92
-    # (was ly+94), bar height 13 -> 12. Rows land ly+92/113/134/155;
-    # last bar ends ly+167; footnote stays ly+169, 2px clear (the
-    # hard ceiling on this lever). Value column, 16px bar-to-value
-    # gap, INK names, 1.5 bold values all UNTOUCHED (A/B-proven
-    # load-bearing for -5.3%). SECOND ATTEMPT tried and recorded in
-    # FACTCHECK-V9 (pitch back to 20, height 12 only): recovered
-    # neither flip and the -5.3% pass came back only as the old PCE
-    # artifact — the decimal point flips "." -> "," on ANY bar
-    # change. This pitch version is the committed V9 record.
+    # V10 F0 (audit in work/v10/AUDIT.md): V9's pitch contingency is
+    # REVERTED — it recovered LILLE but broke the honest -5.3% read
+    # (decimal "." -> ",") AND the masthead ("MHORLD"), 10/13. V9's
+    # second attempt (height 12 only, text glyphs untouched) broke
+    # the decimal too, so ANY bar change breaks it: V8's exact bar
+    # geometry (ly+94, pitch 20, height 13) is the only known-good
+    # geometry and is restored here verbatim. V10's nudges live
+    # elsewhere (lead body +1px, or UCL strip -1px), one at a time,
+    # with the chart byte-identical to V8. Value column, 16px
+    # bar-to-value gap, INK names, 1.5 bold values all UNTOUCHED
+    # (A/B-proven load-bearing for -5.3%).
     for i, (name, val) in enumerate(CHART_BARS):
-        yy = ly + 92 + i * 21
+        yy = ly + 94 + i * 20
         pg.text(rx + 14, yy + 1, name, 1.15, INK, bold=True)
         bl = bw * abs(val) / 5.3
-        pg.rect(bx, yy, bl, 12, BEAT["BUSINESS"])
+        pg.rect(bx, yy, bl, 13, BEAT["BUSINESS"])
         pg.text(val_x, yy + 1, "-" + str(abs(val)) + "%", 1.5,
                 INK, bold=True)
     pg.text(rx + 14, ly + ch_h - 15, "*NIKKEI INTRADAY - ALL FIGURES "
