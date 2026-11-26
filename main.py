@@ -788,6 +788,17 @@ def draw():
         # Hierarchy now rests on weight only: bold headline vs
         # regular second line.
         bs = pg.fit_scale(st[3], 0.95, cw - 12, floor=0.85)
+        # V13 F2 (variant B): the DHAKA second line at 1.0 instead of
+        # the fit_scale 0.95 — the size lever that recovered LILLE,
+        # applied to the line whose leading "1" vanished from the
+        # OCR. Width 279.0 <= 300 (21px spare); that row's true gap
+        # becomes 2.5px (the gate's budget parser hardcodes 0.95 and
+        # will still print 2.95 — the true number is recorded in
+        # work/v13/FACTCHECK-V13.md). Variant A (wy 702->703) was
+        # tried and reverted: null on the headline gate (12/13, same
+        # miss) and it regressed the 300px masthead to MISS.
+        if "17,000" in st[3]:
+            bs = 1.0
         pg.text(cx + 12, cy + 12.5, st[3], bs, INK)
     # UCL strip: all nine Wednesday finals, two lines at the wire's
     # foot (this is story #63; the grid above holds the other 30).
