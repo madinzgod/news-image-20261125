@@ -707,11 +707,26 @@ def draw():
     bx = rx + 134
     val_x = rx + rw - 100
     bw = val_x - 16 - bx
+    # V9 F1 (P1-P2, P10-P11): the pitch contingency from FACTCHECK-V8.
+    # V8 fixed -5.3% honestly but the geometry reshuffle brought back
+    # the two V6 noise flips in UNCHANGED text ("PAKISTANT", "LITLE").
+    # The page reads correctly to the eye; the flips are tesseract
+    # segmentation noise, so this is a cheap, reversible reshuffle,
+    # not a readability fix: row pitch 20 -> 21, bars start ly+92
+    # (was ly+94), bar height 13 -> 12. Rows land ly+92/113/134/155;
+    # last bar ends ly+167; footnote stays ly+169, 2px clear (the
+    # hard ceiling on this lever). Value column, 16px bar-to-value
+    # gap, INK names, 1.5 bold values all UNTOUCHED (A/B-proven
+    # load-bearing for -5.3%). SECOND ATTEMPT tried and recorded in
+    # FACTCHECK-V9 (pitch back to 20, height 12 only): recovered
+    # neither flip and the -5.3% pass came back only as the old PCE
+    # artifact — the decimal point flips "." -> "," on ANY bar
+    # change. This pitch version is the committed V9 record.
     for i, (name, val) in enumerate(CHART_BARS):
-        yy = ly + 94 + i * 20
+        yy = ly + 92 + i * 21
         pg.text(rx + 14, yy + 1, name, 1.15, INK, bold=True)
         bl = bw * abs(val) / 5.3
-        pg.rect(bx, yy, bl, 13, BEAT["BUSINESS"])
+        pg.rect(bx, yy, bl, 12, BEAT["BUSINESS"])
         pg.text(val_x, yy + 1, "-" + str(abs(val)) + "%", 1.5,
                 INK, bold=True)
     pg.text(rx + 14, ly + ch_h - 15, "*NIKKEI INTRADAY - ALL FIGURES "
