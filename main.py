@@ -677,15 +677,12 @@ def draw():
         pg.text(lx + 16, hy, ln, 2.6, INK, bold=True)
         hy += 26
     scene_space(pg, lx + 16, hy + 6, lw - 32, 96)
-    # V10 F1 (variant A, the committed record): the lead body alone
-    # moves down 1px — the scene box, headline, chip and chart are
-    # byte-identical to V8. The PAKISTANI flip lives in body line 3
-    # (y = 402 -> 403); a 1px shift reshuffles segmentation in the
-    # lead block only. Body-to-chip clearance goes 15px -> 14px
-    # (still clear). Variant B (UCL strip up 1px, tried this session,
-    # md5 1093cc34) made the strip read WORSE ("WUC _WEDRESDAY",
-    # "LITLE O-1 GAYERN") — not committed; recorded in FACTCHECK-V10.
-    by = hy + 6 + 96 + 7
+    # V11 F2 (variant B): the lead body alone moves down 2px from V8
+    # (by = hy+6+96+8; V10's +7 was a null result). Scene, headline,
+    # chip and chart byte-identical to V8. Body-to-chip clearance
+    # goes 14px -> 13px (still clear). Tried only after variant A
+    # (wy 702 -> 703) proved null on the full gate.
+    by = hy + 6 + 96 + 8
     pg.para(lx + 16, by, LEAD[4], 1.65, INK, lw - 32, 16)
     chip(pg, lx + 16, ly + lh - 36, LEAD[5])
     # -- right rail: chart + rail feature ----------------------------------
